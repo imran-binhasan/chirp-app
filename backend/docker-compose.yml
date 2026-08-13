@@ -1,0 +1,35 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: mini-social-feed-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: mini_social_feed
+    ports:
+      - '5432:5432'
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U postgres -d mini_social_feed']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  # Isolated, ephemeral database for the integration test suite.
+  # Runs on tmpfs (RAM) — tests are fast and leave no residue.
+  postgres_test:
+    image: postgres:16-alpine
+    container_name: mini-social-feed-db-test
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: mini_social_feed_test
+    ports:
+      - '5433:5432'
+    tmpfs:
+      - /var/lib/postgresql/data
+
+volumes:
+  pgdata:

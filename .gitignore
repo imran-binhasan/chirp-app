@@ -1,0 +1,32 @@
+# Dependencies
+node_modules/
+
+# Builds
+dist/
+build/
+
+# Tests
+coverage/
+
+# Environment / secrets
+.env
+.env.local
+.env.*.local
+
+# Logs
+*.log
+
+# OS
+.DS_Store
+
+# Local tooling config
+.claude/
+.idea/
+.vscode/
+
+# Mobile / Expo
+.expo/
+*.apk
+*.aab
+google-services.json
+GoogleService-Info.plist
