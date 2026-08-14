@@ -1,4 +1,3 @@
-import cors from 'cors';
 import express from 'express';
 import helmet from 'helmet';
 import { pinoHttp } from 'pino-http';
@@ -46,7 +45,6 @@ export function createApp(): express.Express {
     }),
   );
   app.use(helmet());
-  app.use(cors({ origin: env.corsOrigins.includes('*') ? true : env.corsOrigins }));
   app.use(express.json({ limit: '16kb' }));
 
   // Ahead of the limiter so health polling never spends the request budget.
@@ -68,6 +66,10 @@ export function createApp(): express.Express {
   );
 
   app.use(globalLimiter);
+
+  app.get('/', (_req, res) => {
+    res.send('Hello from chirp');
+  });
 
   const openApiDocument = buildOpenApiDocument();
   app.get('/api/docs.json', (_req, res) => {

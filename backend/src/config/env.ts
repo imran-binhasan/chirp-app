@@ -16,8 +16,6 @@ const envSchema = z.object({
   JWT_ACCESS_TTL: ttlSchema.default('15m'),
   JWT_REFRESH_TTL: ttlSchema.default('30d'),
 
-  CORS_ORIGINS: z.string().default('*'),
-
   /** Proxy hops in front of the API. Never set higher than you actually run. */
   TRUST_PROXY: z.coerce.number().int().min(0).default(0),
 
@@ -42,16 +40,10 @@ if (!parsed.success) {
 
 const data = parsed.data;
 
-if (data.NODE_ENV === 'production' && data.CORS_ORIGINS.split(',').some((origin) => origin.trim() === '*')) {
-  console.error('Invalid environment configuration: CORS_ORIGINS must name explicit origins in production');
-  process.exit(1);
-}
-
 export const env = {
   ...data,
   isProd: data.NODE_ENV === 'production',
   isTest: data.NODE_ENV === 'test',
-  corsOrigins: data.CORS_ORIGINS.split(',').map((origin) => origin.trim()),
   firebaseConfigured: Boolean(
     data.FIREBASE_PROJECT_ID && data.FIREBASE_CLIENT_EMAIL && data.FIREBASE_PRIVATE_KEY,
   ),

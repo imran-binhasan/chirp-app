@@ -15,13 +15,13 @@
       "distribution": "internal",
       "android": { "buildType": "apk" },
       "env": {
-        "EXPO_PUBLIC_API_URL": "https://chirp.up.railway.app/api/v1"
+        "EXPO_PUBLIC_API_URL": "https://chirpapp.up.railway.app/api/v1"
       }
     },
     "production": {
       "autoIncrement": true,
       "env": {
-        "EXPO_PUBLIC_API_URL": "https://chirp.up.railway.app/api/v1"
+        "EXPO_PUBLIC_API_URL": "https://chirpapp.up.railway.app/api/v1"
       }
     }
   },
