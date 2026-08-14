@@ -1,6 +1,7 @@
 FROM node:22-bookworm-slim AS build
 
 WORKDIR /app
+RUN apt-get update && apt-get install -y --no-install-recommends openssl && rm -rf /var/lib/apt/lists/*
 COPY package.json package-lock.json ./
 RUN npm ci
 COPY prisma ./prisma
@@ -24,12 +25,10 @@ COPY --from=build /app/node_modules/prisma ./node_modules/prisma
 COPY prisma ./prisma
 # Recreated rather than copied: COPY dereferences symlinks, and a flattened
 # copy of the CLI resolves its wasm assets relative to .bin/ and fails.
-#
-# prisma.config.ts is deliberately left out — it needs a TypeScript loader that
-# prod dependencies do not include, and everything it sets (schema path, seed
-# command) is either the default or dev-only. DATABASE_URL comes from the
-# environment here, not a .env file.
 RUN ln -sf ../prisma/build/index.js node_modules/.bin/prisma
+# Regenerate here so the client engines match the OpenSSL version actually
+# present in this image, not whatever the build stage detected.
+RUN npx prisma generate
 COPY --from=build /app/dist ./dist
 
 USER node
