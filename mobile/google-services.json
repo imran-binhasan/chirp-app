@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "372693581173",
+    "project_id": "chirp-a8844",
+    "storage_bucket": "chirp-a8844.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:372693581173:android:51395ada1f57682e86a73c",
+        "android_client_info": {
+          "package_name": "com.techz.socialapp"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyB7GzmFmg_cxB0F3YcpZTEQsfsPJA48FR8"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

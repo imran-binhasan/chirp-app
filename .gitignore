@@ -27,5 +27,4 @@ coverage/
 .expo/
 *.apk
 *.aab
-google-services.json
 GoogleService-Info.plist

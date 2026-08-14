@@ -40,7 +40,6 @@ yarn-error.*
 /ios
 /android
 .idea/
-google-services.json
 GoogleService-Info.plist
 *.apk
 *.aab
