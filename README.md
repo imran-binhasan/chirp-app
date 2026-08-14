@@ -62,6 +62,7 @@ npx expo start -c
 *(See `backend/README.md` and `mobile/README.md` for specific architectural details and testing instructions.)*
 
 
+
 ## 🌟 Beyond the Requirements (Not Scope Creep)
 I built a few areas beyond the requested scope because they are critical for a feed app at production scale. These are necessary UX and performance implementations:
 

@@ -18,7 +18,7 @@ RUN npm ci --omit=dev && npm cache clean --force
 COPY --from=build /app/node_modules/.prisma ./node_modules/.prisma
 COPY --from=build /app/node_modules/@prisma ./node_modules/@prisma
 # The migration CLI and the schema it applies. Without these the image cannot
-# run the `npm run prisma:deploy` step the README prescribes before rollout.
+# run the `npm run prisma:deploy` step before rollout.
 COPY --from=build /app/node_modules/prisma ./node_modules/prisma
 COPY prisma ./prisma
 # Recreated rather than copied: COPY dereferences symlinks, and a flattened
@@ -33,4 +33,4 @@ COPY --from=build /app/dist ./dist
 
 USER node
 EXPOSE 4000
-CMD ["node", "dist/server.js"]
+CMD ["sh", "-c", "npm run prisma:deploy && node dist/server.js"]

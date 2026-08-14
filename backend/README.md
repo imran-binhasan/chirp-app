@@ -63,7 +63,8 @@ FIREBASE_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY----
 
 Base URL: **`/api/v1`**. An interactive OpenAPI page is generated from the same Zod schemas that
 validate requests — so it cannot drift from the implementation — and is served at
-**`http://localhost:4000/api/docs`** (raw spec at `/api/docs.json`).
+**`http://localhost:4000/api/docs`** locally, or **`https://chirp.up.railway.app/api/docs`** in
+production (raw spec at `/api/docs.json`).
 
 ### Response envelope
 Every endpoint, success or failure, answers in one shape:
