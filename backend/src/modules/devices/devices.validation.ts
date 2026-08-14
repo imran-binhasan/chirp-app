@@ -10,5 +10,11 @@ export const deviceTokenParamsSchema = z.object({
   token: z.string().min(1).max(4096),
 });
 
+/** Keep bearer-like device tokens out of URLs, proxies and access logs. */
+export const unregisterDeviceSchema = z.object({
+  token: z.string().min(1).max(4096),
+});
+
 export type RegisterDeviceInput = z.infer<typeof registerDeviceSchema>;
 export type DeviceTokenParams = z.infer<typeof deviceTokenParamsSchema>;
+export type UnregisterDeviceInput = z.infer<typeof unregisterDeviceSchema>;

@@ -26,6 +26,7 @@
     },
     "plugins": [
       "expo-font",
+      "expo-notifications",
       [
         "expo-splash-screen",
         {
@@ -35,6 +36,11 @@
           "backgroundColor": "#FFFFFF"
         }
       ]
-    ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "547388d1-e5da-404d-a068-8eb98c5c1230"
+      }
+    }
   }
 }

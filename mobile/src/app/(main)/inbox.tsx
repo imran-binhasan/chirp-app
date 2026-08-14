@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, RefreshControl, ActivityIndicator } from 'react-native';
 import { useInfiniteQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { FlashList } from '@shopify/flash-list';
@@ -12,7 +12,7 @@ import { timeAgo } from '../../utils/timeAgo';
 import { ScreenContainer } from '../../components/ScreenContainer';
 import { UserAvatar } from '../../components/UserAvatar';
 import { EmptyState, ErrorState, LoadingState } from '../../components/StateViews';
-import type { Notification, Page } from '../../types/api';
+import type { InfiniteData, Notification, Page, UnreadCount } from '../../types/api';
 
 export default function InboxScreen() {
   const theme = useThemeColors();
@@ -28,39 +28,76 @@ export default function InboxScreen() {
     getNextPageParam: (lastPage) => lastPage.pagination.nextCursor,
   });
 
-  const notifications = query.data?.pages.flatMap((page) => page.items) ?? [];
+  const { data, refetch, fetchNextPage, hasNextPage, isFetchingNextPage } = query;
+  const notifications = useMemo(
+    () => data?.pages.flatMap((page) => page.items) ?? [],
+    [data],
+  );
 
-  // Reading no longer mutates server-side, so the app decides when the user
-  // has actually seen the list and clears the badge itself.
-  const markRead = useMutation({
+  const markAllRead = useMutation({
     mutationFn: () => notificationsApi.markAllRead(),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.unreadCount }),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: queryKeys.notifications });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.unreadCount });
+    },
+  });
+
+  /**
+   * Opening a notification is the moment it stops being news. The cache is
+   * patched in place rather than invalidated: a refetch would change nothing
+   * but cost a round-trip while the reader is already on the next screen.
+   */
+  const markOneRead = useMutation({
+    mutationFn: (notificationId: string) => notificationsApi.markRead(notificationId),
+    onMutate: (notificationId: string) => {
+      queryClient.setQueryData<InfiniteData<Notification>>(queryKeys.notifications, (old) =>
+        old
+          ? {
+              ...old,
+              pages: old.pages.map((page) => ({
+                ...page,
+                items: page.items.map((item) =>
+                  item.id === notificationId ? { ...item, read: true } : item,
+                ),
+              })),
+            }
+          : old,
+      );
+      queryClient.setQueryData<UnreadCount['unread']>(queryKeys.unreadCount, (unread) =>
+        typeof unread === 'number' ? Math.max(0, unread - 1) : unread,
+      );
+    },
+    // A missed read flag is cosmetic; the next inbox fetch corrects it.
+    onError: () => {
+      void queryClient.invalidateQueries({ queryKey: queryKeys.notifications });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.unreadCount });
+    },
   });
 
   const hasUnread = notifications.some((item) => !item.read);
-  const [dismissed, setDismissed] = useState(false);
-
-  useEffect(() => {
-    if (hasUnread && !dismissed && !markRead.isPending) {
-      setDismissed(true);
-      markRead.mutate();
-    }
-  }, [hasUnread, dismissed, markRead]);
 
   const [refreshing, setRefreshing] = useState(false);
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
-    setDismissed(false);
     try {
-      await query.refetch();
+      await refetch();
     } finally {
       setRefreshing(false);
     }
-  }, [query]);
+  }, [refetch]);
 
   const loadMore = useCallback(() => {
-    if (query.hasNextPage && !query.isFetchingNextPage) void query.fetchNextPage();
-  }, [query]);
+    if (hasNextPage && !isFetchingNextPage) void fetchNextPage();
+  }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
+
+  const { mutate: markRead } = markOneRead;
+  const openNotification = useCallback(
+    (item: Notification) => {
+      if (!item.read) markRead(item.id);
+      if (item.postId) router.push(`/post/${item.postId}`);
+    },
+    [markRead, router],
+  );
 
   const renderNotification = useCallback(
     ({ item }: { item: Notification }) => {
@@ -77,10 +114,11 @@ export default function InboxScreen() {
               backgroundColor: item.read ? theme.background : theme.unreadHighlight,
             },
           ]}
-          onPress={() => item.postId && router.push(`/post/${item.postId}`)}
-          disabled={!item.postId}
+          onPress={() => openNotification(item)}
           accessibilityRole="button"
-          accessibilityLabel={`${item.actor.username} ${action}, ${timeAgo(item.createdAt)} ago`}
+          accessibilityLabel={`${item.actor.username} ${action}, ${timeAgo(item.createdAt)} ago${
+            item.read ? '' : ', unread'
+          }`}
         >
           <View style={styles.iconSlot}>
             <Ionicons
@@ -106,13 +144,23 @@ export default function InboxScreen() {
         </TouchableOpacity>
       );
     },
-    [theme, router, gutter, avatarSize],
+    [theme, router, gutter, avatarSize, openNotification],
   );
 
   return (
     <ScreenContainer>
       <View style={[styles.header, { borderBottomColor: theme.border, paddingHorizontal: gutter }]}>
         <Text style={[styles.headerTitle, { color: theme.text }]}>Ping</Text>
+        {hasUnread ? (
+          <TouchableOpacity
+            onPress={() => markAllRead.mutate()}
+            disabled={markAllRead.isPending}
+            accessibilityRole="button"
+            accessibilityLabel="Mark all notifications as read"
+          >
+            <Text style={[styles.markRead, { color: theme.primary }]}>Mark all read</Text>
+          </TouchableOpacity>
+        ) : null}
       </View>
 
       {query.isLoading ? (
@@ -150,10 +198,13 @@ export default function InboxScreen() {
 const styles = StyleSheet.create({
   header: {
     height: 60,
-    justifyContent: 'center',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
     borderBottomWidth: StyleSheet.hairlineWidth,
   },
   headerTitle: { fontFamily: 'Outfit_500Medium', fontSize: 20 },
+  markRead: { fontFamily: 'Outfit_500Medium', fontSize: 14 },
   row: { flexDirection: 'row', paddingVertical: 16, borderBottomWidth: StyleSheet.hairlineWidth },
   iconSlot: { width: 30, alignItems: 'flex-end', marginRight: 12 },
   avatar: { marginRight: 12 },

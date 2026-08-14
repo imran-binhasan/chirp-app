@@ -10,10 +10,7 @@ interface ScreenContainerProps {
   style?: ViewStyle;
 }
 
-/**
- * Safe-area screen shell that also caps content width on tablets, so every
- * screen picks up the responsive layout without repeating the logic.
- */
+/** Safe-area shell that also caps content width on tablets. */
 export function ScreenContainer({
   children,
   edges = ['top'],

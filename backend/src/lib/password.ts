@@ -12,19 +12,16 @@ export const verifyPassword = async (hash: string, plain: string): Promise<boole
   }
 };
 
-/**
- * Argon2id hash of a throwaway value, computed once at startup.
- *
- * Login verifies against this when no user matches, so the "unknown user" and
- * "wrong password" paths cost the same wall-clock time. Without it, a fast
- * rejection reveals which accounts exist (timing-based user enumeration).
- */
 const dummyHashPromise = argon2.hash('argon2-timing-equalizer');
 
+/**
+ * Burns the same CPU time a real verify would. Login calls this when no user
+ * matches, so a fast rejection cannot reveal which accounts exist.
+ */
 export const wasteVerificationTime = async (): Promise<void> => {
   try {
     await argon2.verify(await dummyHashPromise, 'not-the-password');
   } catch {
-    // Result is irrelevant — this exists purely to burn equivalent CPU time.
+    // Intentionally empty.
   }
 };

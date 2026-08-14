@@ -40,7 +40,6 @@ export const hashToken = (token: string): string =>
 
 const TTL_UNIT_MS: Record<string, number> = { s: 1_000, m: 60_000, h: 3_600_000, d: 86_400_000 };
 
-/** Converts '15m' / '30d' style TTLs (validated in config/env) to milliseconds. */
 export function ttlToMs(ttl: string): number {
   const match = /^(\d+)([smhd])$/.exec(ttl);
   if (!match) throw new Error(`Invalid TTL format: ${ttl}`);

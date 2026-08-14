@@ -52,7 +52,9 @@ afterEach(() => queryClient?.clear());
 async function optionsAt(width: number): Promise<BottomTabNavigationOptions> {
   capturedOptions.length = 0;
   dimensions.mockReturnValue({ width, height: 800, scale: 2, fontScale: 1 });
-  queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  queryClient = new QueryClient({
+    defaultOptions: { queries: { retry: false, gcTime: Infinity } },
+  });
   await render(
     <QueryClientProvider client={queryClient}>
       <MainLayout />

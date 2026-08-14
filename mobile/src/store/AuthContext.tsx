@@ -1,6 +1,6 @@
 import React, { createContext, useCallback, useContext, useEffect, useState } from 'react';
-import { useQueryClient } from '@tanstack/react-query';
 import { authApi, devicesApi } from '../api/endpoints';
+import { clearPersistedCache } from '../api/queryClient';
 import { onSessionExpired } from '../utils/authEvents';
 import {
   clearPushToken,
@@ -30,16 +30,17 @@ const AuthContext = createContext<AuthContextType | null>(null);
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
-  const queryClient = useQueryClient();
-
   useEffect(() => {
     const loadSession = async () => {
       try {
         if (await getAccessToken()) {
           setUser(await authApi.me());
+        } else {
+          // A previous session's cache must not show on the welcome flow.
+          await clearPersistedCache();
         }
       } catch {
-        // Token is unusable and the interceptor could not rescue it.
+        // Unusable token that the interceptor could not rescue.
         await clearTokens();
       } finally {
         setLoading(false);
@@ -48,8 +49,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     void loadSession();
   }, []);
 
-  // The interceptor clears storage but cannot touch React state — do it here,
-  // otherwise the app keeps rendering an authenticated shell with no tokens.
+  // The interceptor clears storage but cannot touch React state, so without
+  // this the app keeps rendering an authenticated shell with no tokens.
   useEffect(() => {
     const subscription = onSessionExpired(() => setUser(null));
     return () => subscription.remove();
@@ -64,22 +65,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   );
 
   const logout = useCallback(async () => {
-    // Clear state first so the UI never blocks on a network round-trip.
+    // State first, so the UI never blocks on a network round-trip. The on-disk
+    // copy goes too: it carries this account's `likedByMe` flags.
     setUser(null);
-    queryClient.clear();
+    await clearPersistedCache();
 
     const [refreshToken, pushToken] = await Promise.all([getRefreshToken(), getPushToken()]);
 
-    // Best-effort server cleanup: revoke the refresh token so it cannot be
-    // replayed for the next 30 days, and stop this device receiving pushes
-    // meant for the account that just signed out.
+    // Best-effort: revoke the refresh token so it cannot be replayed, and stop
+    // this device receiving pushes meant for the account that signed out.
     await Promise.allSettled([
       pushToken ? devicesApi.unregister(pushToken) : Promise.resolve(),
       refreshToken ? authApi.logout(refreshToken) : Promise.resolve(),
     ]);
 
     await Promise.all([clearTokens(), clearPushToken()]);
-  }, [queryClient]);
+  }, []);
 
   return (
     <AuthContext.Provider value={{ user, loading, login, logout }}>{children}</AuthContext.Provider>

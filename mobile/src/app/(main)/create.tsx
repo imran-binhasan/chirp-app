@@ -32,7 +32,8 @@ export default function CreateScreen() {
 
   const trimmed = content.trim();
   const remaining = MAX_LENGTH - content.length;
-  const isInvalid = trimmed.length === 0 || content.length > MAX_LENGTH;
+  // maxLength already caps the input, so emptiness is all that is left to guard.
+  const isInvalid = trimmed.length === 0;
 
   return (
     <ScreenContainer>

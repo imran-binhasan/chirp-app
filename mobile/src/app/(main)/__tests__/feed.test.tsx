@@ -35,7 +35,9 @@ const page = (items: Post[]): Page<Post> => ({
 });
 
 function renderFeed() {
-  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  const queryClient = new QueryClient({
+    defaultOptions: { queries: { retry: false, gcTime: Infinity } },
+  });
   return render(
     <QueryClientProvider client={queryClient}>
       <FeedScreen />
@@ -95,6 +97,21 @@ describe('FeedScreen', () => {
     await fireEvent.changeText(screen.getByTestId('feed-search-input'), 'Jane');
 
     // Debounced, so this asserts the eventual call rather than an immediate one.
+    await waitFor(
+      () => expect(feed).toHaveBeenCalledWith(expect.objectContaining({ username: 'jane' })),
+      DEBOUNCE_TIMEOUT,
+    );
+  });
+
+  it('accepts an @ prefix without duplicating it in the username filter', async () => {
+    feed.mockResolvedValue(page([makePost('p1', 'jane', 'hello')]));
+    await renderFeed();
+    await screen.findByText('hello');
+
+    await fireEvent.press(screen.getByTestId('feed-search-button'));
+    await fireEvent.changeText(screen.getByTestId('feed-search-input'), '@Jane');
+
+    expect(screen.getByTestId('feed-search-input').props.value).toBe('Jane');
     await waitFor(
       () => expect(feed).toHaveBeenCalledWith(expect.objectContaining({ username: 'jane' })),
       DEBOUNCE_TIMEOUT,

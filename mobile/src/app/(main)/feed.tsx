@@ -26,13 +26,13 @@ export default function FeedScreen() {
   const { posts, isLoading, isError, error, refetch, refreshing, onRefresh, loadMore, isFetchingNextPage } =
     usePostList({ queryKey, username: username || undefined });
 
-  const likeMutation = useLikeMutation(queryKey);
+  // A stable callback, so PostCard's React.memo actually holds and scrolling
+  // does not re-render every visible row on each parent render.
+  const { toggle: toggleLike } = useLikeMutation();
 
   const renderPost = useCallback(
-    ({ item }: { item: Post }) => (
-      <PostCard post={item} onLike={(id) => likeMutation.mutate(id)} />
-    ),
-    [likeMutation],
+    ({ item }: { item: Post }) => <PostCard post={item} onLike={toggleLike} />,
+    [toggleLike],
   );
 
   const closeSearch = useCallback(() => {
@@ -51,7 +51,7 @@ export default function FeedScreen() {
               placeholder="Filter by username"
               placeholderTextColor={theme.textSecondary}
               value={usernameInput}
-              onChangeText={setUsernameInput}
+              onChangeText={(value) => setUsernameInput(value.replace(/^@+/, ''))}
               autoCapitalize="none"
               autoCorrect={false}
               autoFocus

@@ -4,10 +4,7 @@ import { clearTokens, getAccessToken, getRefreshToken, saveTokens } from '../uti
 import type { ApiEnvelope, Page, RefreshResponse } from '../types/api';
 import { ApiError, toApiError } from './errors';
 
-/**
- * 10.0.2.2 is the Android emulator's alias for the host machine. On a physical
- * device set EXPO_PUBLIC_API_URL to your machine's LAN address — see the README.
- */
+/** 10.0.2.2 is the Android emulator's alias for the host machine. */
 export const BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'http://10.0.2.2:4000/api/v1';
 
 export const client = axios.create({ baseURL: BASE_URL, timeout: 15_000 });
@@ -46,10 +43,8 @@ async function rotateTokens(): Promise<string> {
 }
 
 /**
- * Endpoints that must never trigger a refresh. A 401 from these is the real
- * answer, not an expired access token — and refreshing on /auth/refresh itself
- * would recurse. Note /auth/me is deliberately absent: it is a normal
- * authenticated call and should be retried like any other.
+ * A 401 from these is the real answer, not an expired token. /auth/me is
+ * deliberately absent — it is a normal call and should be retried like any other.
  */
 const NON_REFRESHABLE = ['/auth/refresh', '/auth/login', '/auth/signup', '/auth/logout'];
 
@@ -77,7 +72,7 @@ client.interceptors.response.use(
       }
     }
 
-    // Everything past this point deals in ApiError, never AxiosError.
+    // Past this point the app only ever sees ApiError, never AxiosError.
     return Promise.reject(toApiError(error));
   },
 );
@@ -89,10 +84,7 @@ export const __resetRefreshState = (): void => {
 
 // ─── Typed request helpers ───────────────────────────────────────────────────
 
-/**
- * Unwraps the API envelope so callers receive `data` directly. Any failure
- * surfaces as an ApiError, including a well-formed envelope with success:false.
- */
+/** Unwraps the envelope so callers receive `data` directly. */
 async function unwrap<T>(request: Promise<{ data: ApiEnvelope<T> }>): Promise<T> {
   const response = await request;
   const envelope = response.data;
@@ -125,13 +117,12 @@ export const get = <T>(url: string, params?: Params): Promise<T> =>
 export const post = <T>(url: string, body?: unknown): Promise<T> =>
   unwrap<T>(client.post<ApiEnvelope<T>>(url, body));
 
-export const del = <T>(url: string): Promise<T> =>
-  unwrap<T>(client.delete<ApiEnvelope<T>>(url));
+export const del = <T>(url: string, body?: unknown): Promise<T> =>
+  unwrap<T>(client.delete<ApiEnvelope<T>>(url, { data: body }));
 
 /**
- * List endpoints put their rows in `data` and their cursor in `meta.pagination`.
- * This rejoins the two into one `Page<T>` so infinite queries have everything
- * they need from a single object.
+ * Rejoins a list response's rows (`data`) and cursor (`meta.pagination`) into
+ * one object, which is what an infinite query needs per page.
  */
 export async function getPage<T>(url: string, params?: Params): Promise<Page<T>> {
   const response = await client.get<ApiEnvelope<T[]>>(url, { params: clean(params) });

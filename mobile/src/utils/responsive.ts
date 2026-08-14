@@ -3,33 +3,19 @@ import { useWindowDimensions } from 'react-native';
 /** Below this the device gets the single-column phone layout. */
 const TABLET_BREAKPOINT = 700;
 
-/**
- * Where primary navigation leaves the bottom edge for a side rail. Matches the
- * Material 3 medium window class, which also catches large phones in landscape
- * — the width at which a full-bleed bottom bar starts to feel stranded.
- */
+/** Material 3 medium window class — also catches large phones in landscape. */
 const RAIL_BREAKPOINT = 600;
 
-/**
- * Wide enough to afford labels beside the icons instead of under them. Set to
- * catch tablets in landscape while leaving them a compact rail in portrait.
- */
+/** Wide enough for labels beside the icons rather than under them. */
 const EXPANDED_RAIL_BREAKPOINT = 1000;
 
 /** Material 3 navigation rail width. */
 const RAIL_WIDTH = 80;
 
-/**
- * Narrower than the 360dp M3 drawer: this is a labelled rail, not a drawer with
- * sections, and the surplus is better spent on the reading column.
- */
+/** Narrower than the 360dp M3 drawer; the surplus goes to the reading column. */
 const EXPANDED_RAIL_WIDTH = 240;
 
-/**
- * Reading column cap. Feed rows stretched across a 10" tablet are unreadable,
- * so content is centred at a comfortable measure and the surplus width
- * becomes margin.
- */
+/** Feed rows stretched across a 10" tablet are unreadable, so cap and centre. */
 const CONTENT_MAX_WIDTH = 700;
 
 /** Where primary navigation sits, and how its items are laid out. */

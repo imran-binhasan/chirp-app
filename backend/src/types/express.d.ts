@@ -1,14 +1,12 @@
-// Ambient augmentation of Express types — intentionally no imports/exports
-// so this file is treated as a global declaration file.
+// No imports or exports: this must stay a global declaration file.
 
 declare namespace Express {
   interface Request {
-    /** Set by the authenticate middleware after the access token is verified. */
+    /** Set by the authenticate middleware. */
     user?: { id: string };
   }
 
   interface Locals {
-    /** Correlation id assigned by the requestId middleware. */
     requestId: string;
   }
 }

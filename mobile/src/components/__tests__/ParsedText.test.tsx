@@ -53,6 +53,35 @@ describe('ParsedText', () => {
     expect(screen.getByText('@b')).toBeTruthy();
   });
 
+  it('does not mistake the domain of an email address for a mention', async () => {
+    await render(<ParsedText text="reach me at jane@example.com anytime" />);
+
+    expect(screen.queryByText('@example')).toBeNull();
+    expect(screen.getByText('reach me at jane@example.com anytime')).toBeTruthy();
+  });
+
+  it('still linkifies a mention that opens the body', async () => {
+    await render(<ParsedText text="@jane hello" />);
+
+    await fireEvent.press(screen.getByText('@jane'));
+
+    expect(__mockRouter.push).toHaveBeenCalledWith('/user/jane');
+  });
+
+  it('leaves an @ inside a URL to the URL', async () => {
+    await render(<ParsedText text="see https://example.com/@jane for more" />);
+
+    expect(screen.getByText('https://example.com/@jane')).toBeTruthy();
+    expect(screen.queryByText('@jane')).toBeNull();
+  });
+
+  it('keeps the punctuation in front of a mention as prose', async () => {
+    await render(<ParsedText text="(@jane)" />);
+
+    expect(screen.getByText('@jane')).toBeTruthy();
+    expect(screen.getByText('(')).toBeTruthy();
+  });
+
   it('renders an empty body without crashing', async () => {
     const result = await render(<ParsedText text="" />);
     expect(result.toJSON()).toBeTruthy();

@@ -14,11 +14,21 @@ import { ScreenContainer } from '../../components/ScreenContainer';
 import { ParsedText } from '../../components/ParsedText';
 import { UserAvatar } from '../../components/UserAvatar';
 import { LikeButton } from '../../components/LikeButton';
+import { RequireAuth } from '../../components/RequireAuth';
 import { EmptyState, ErrorState, LoadingState } from '../../components/StateViews';
 import { useLikeMutation } from '../../hooks/useLikeMutation';
 import type { Comment, Page } from '../../types/api';
 
-export default function PostDetailScreen() {
+/** Reachable by deep link and by a push-notification tap — hence the gate. */
+export default function PostDetailRoute() {
+  return (
+    <RequireAuth>
+      <PostDetailScreen />
+    </RequireAuth>
+  );
+}
+
+function PostDetailScreen() {
   const params = useLocalSearchParams<{ id: string }>();
   const postId = params.id ?? '';
   const router = useRouter();
@@ -42,15 +52,14 @@ export default function PostDetailScreen() {
     enabled: Boolean(postId),
   });
 
-  const likeMutation = useLikeMutation(queryKeys.post(postId), 'detail');
+  const { toggle: toggleLike } = useLikeMutation();
 
   const commentMutation = useMutation({
     mutationFn: (content: string) => postsApi.addComment(postId, content),
     onSuccess: () => {
       setDraft('');
       void queryClient.invalidateQueries({ queryKey: queryKeys.comments(postId) });
-      // The header's commentCount lives on this query — without it the number
-      // the user is looking at stays stale until they navigate away.
+      // The header's commentCount lives on this query.
       void queryClient.invalidateQueries({ queryKey: queryKeys.post(postId) });
       void queryClient.invalidateQueries({ queryKey: queryKeys.feedAll });
       void queryClient.invalidateQueries({ queryKey: queryKeys.userPostsAll });
@@ -143,7 +152,7 @@ export default function PostDetailScreen() {
                   <LikeButton
                     isLiked={post.likedByMe}
                     likeCount={post.likeCount}
-                    onPress={() => likeMutation.mutate(post.id)}
+                    onPress={() => toggleLike(post)}
                   />
                   <Text style={[styles.muted, { color: theme.textSecondary }]}>
                     {post.commentCount} {post.commentCount === 1 ? 'reply' : 'replies'}

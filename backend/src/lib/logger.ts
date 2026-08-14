@@ -10,4 +10,9 @@ export const logger = pino({
           target: 'pino-pretty',
           options: { colorize: true, translateTime: 'SYS:HH:MM:ss', ignore: 'pid,hostname' },
         },
+  // Safety net: never persist credentials even if a serializer misses them.
+  redact: {
+    paths: ['req.headers.authorization', 'authorization', '*.token', '*.password', '*.refreshToken'],
+    censor: '[REDACTED]',
+  },
 });

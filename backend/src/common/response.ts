@@ -2,8 +2,7 @@ import type { Response } from 'express';
 import type { PaginationMeta } from './pagination';
 
 /**
- * Uniform response envelope — EVERY endpoint in the API responds through
- * these two helpers, so clients always see the exact same shape:
+ * Every endpoint answers through these two helpers, so clients see one shape:
  *
  *   success: { success: true,  data, error: null, meta }
  *   failure: { success: false, data: null, error, meta }

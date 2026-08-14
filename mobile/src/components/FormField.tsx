@@ -18,10 +18,7 @@ interface FormFieldProps<T extends FieldValues> {
   autoComplete?: 'username' | 'email' | 'password' | 'new-password' | 'off';
 }
 
-/**
- * One labelled, validated input. Login and signup were ~90 duplicated lines of
- * markup per field before this existed.
- */
+/** One labelled, validated input, shared by login and signup. */
 export function FormField<T extends FieldValues>({
   control,
   name,

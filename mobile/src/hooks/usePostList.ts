@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { useInfiniteQuery, type QueryKey } from '@tanstack/react-query';
 import { postsApi } from '../api/endpoints';
 import type { Page, Post } from '../types/api';
@@ -12,7 +12,7 @@ interface UsePostListOptions {
 
 /**
  * The cursor-paginated post list behind the feed, your profile and any user's
- * page. All three differ only by cache key and author filter.
+ * page — all three differ only by cache key and author filter.
  */
 export function usePostList({ queryKey, username, enabled = true }: UsePostListOptions) {
   const query = useInfiniteQuery<Page<Post>>({
@@ -24,21 +24,26 @@ export function usePostList({ queryKey, username, enabled = true }: UsePostListO
     enabled,
   });
 
+  // Destructured so the callbacks below depend on react-query's stable
+  // identities, not on `query` — a new object each render, which would defeat
+  // every downstream React.memo.
+  const { data, refetch, fetchNextPage, hasNextPage, isFetchingNextPage } = query;
+
   const [refreshing, setRefreshing] = useState(false);
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
     try {
-      await query.refetch();
+      await refetch();
     } finally {
       setRefreshing(false);
     }
-  }, [query]);
+  }, [refetch]);
 
-  const posts: Post[] = query.data?.pages.flatMap((page) => page.items) ?? [];
+  const posts = useMemo(() => data?.pages.flatMap((page) => page.items) ?? [], [data]);
 
   const loadMore = useCallback(() => {
-    if (query.hasNextPage && !query.isFetchingNextPage) void query.fetchNextPage();
-  }, [query]);
+    if (hasNextPage && !isFetchingNextPage) void fetchNextPage();
+  }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
 
   return { ...query, posts, refreshing, onRefresh, loadMore };
 }

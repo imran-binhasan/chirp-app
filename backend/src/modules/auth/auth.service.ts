@@ -1,4 +1,5 @@
 import { env } from '../../config/env';
+import { Prisma } from '@prisma/client';
 import { hashToken, signAccessToken, signRefreshToken, ttlToMs, verifyRefreshToken } from '../../lib/jwt';
 import { hashPassword, verifyPassword, wasteVerificationTime } from '../../lib/password';
 import { prisma } from '../../lib/prisma';
@@ -9,11 +10,13 @@ import type { LoginInput, SignupInput } from './auth.validation';
 /** Usernames/emails are stored lowercase so lookups are case-insensitive. */
 const normalize = (value: string): string => value.trim().toLowerCase();
 
-async function issueTokenPair(userId: string) {
+type DatabaseClient = typeof prisma | Prisma.TransactionClient;
+
+async function issueTokenPair(userId: string, db: DatabaseClient = prisma) {
   const accessToken = signAccessToken(userId);
   const { token: refreshToken } = signRefreshToken(userId);
 
-  const record = await prisma.refreshToken.create({
+  const record = await db.refreshToken.create({
     data: {
       userId,
       tokenHash: hashToken(refreshToken),
@@ -33,6 +36,22 @@ async function issueTokenPair(userId: string) {
   };
 }
 
+/**
+ * Names the field that actually collided. The pre-check in signup cannot be
+ * authoritative — two concurrent requests can both pass it — so the database
+ * has the last word, and the client still learns which field to fix.
+ */
+function conflictForUniqueViolation(error: unknown): ConflictError | null {
+  if (!(error instanceof Prisma.PrismaClientKnownRequestError) || error.code !== 'P2002') {
+    return null;
+  }
+  const target = error.meta?.['target'];
+  const fields = Array.isArray(target) ? target.map(String) : [String(target ?? '')];
+  return fields.some((field) => field.includes('email'))
+    ? new ConflictError('Email is already registered')
+    : new ConflictError('Username is already taken');
+}
+
 export async function signup(input: SignupInput) {
   const username = normalize(input.username);
   const email = normalize(input.email);
@@ -44,14 +63,19 @@ export async function signup(input: SignupInput) {
   if (existing?.username === username) throw new ConflictError('Username is already taken');
   if (existing?.email === email) throw new ConflictError('Email is already registered');
 
-  const user = await prisma.user.create({
-    data: {
-      username,
-      email,
-      passwordHash: await hashPassword(input.password),
-    },
-    select: userSelfSelect,
-  });
+  const passwordHash = await hashPassword(input.password);
+
+  let user;
+  try {
+    user = await prisma.user.create({
+      data: { username, email, passwordHash },
+      select: userSelfSelect,
+    });
+  } catch (error) {
+    const conflict = conflictForUniqueViolation(error);
+    if (conflict) throw conflict;
+    throw error;
+  }
 
   const { tokens } = await issueTokenPair(user.id);
   return { user, tokens };
@@ -65,8 +89,8 @@ export async function login(input: LoginInput) {
     select: { ...userSelfSelect, passwordHash: true },
   });
 
-  // Generic message on purpose — never reveal which part failed (user enumeration).
-  // The dummy verify keeps both failure paths equal in time as well as in wording.
+  // Same message and same wall-clock cost either way, so neither the wording
+  // nor the timing reveals whether the account exists.
   if (!user) {
     await wasteVerificationTime();
     throw new UnauthorizedError('Invalid credentials');
@@ -81,9 +105,9 @@ export async function login(input: LoginInput) {
 }
 
 /**
- * Refresh token rotation: every call issues a new pair and revokes the old
- * token. If an already-rotated token is presented again (theft signal), the
- * user's entire session family is revoked (OWASP refresh-token guidance).
+ * Rotation: each call mints a new pair and revokes the old token. Presenting
+ * an already-rotated token signals theft and revokes every session the user
+ * has (OWASP refresh-token guidance).
  */
 export async function refresh(refreshToken: string) {
   let userId: string;
@@ -95,36 +119,52 @@ export async function refresh(refreshToken: string) {
     throw new UnauthorizedError('Invalid or expired refresh token');
   }
 
-  const stored = await prisma.refreshToken.findUnique({
-    where: { tokenHash: hashToken(refreshToken) },
+  const tokenHash = hashToken(refreshToken);
+
+  // The outcome is returned, not thrown: throwing inside $transaction rolls it
+  // back, which would undo the family revocation below and leave the stolen
+  // session alive despite the 401 claiming otherwise.
+  const outcome = await prisma.$transaction(async (tx) => {
+    const stored = await tx.refreshToken.findUnique({ where: { tokenHash } });
+    if (!stored || stored.userId !== userId || stored.expiresAt < new Date()) {
+      return { status: 'invalid' as const };
+    }
+
+    // Compare-and-swap: two requests may both read an active token, but only
+    // one may consume it. The loser is treated as a reuse signal.
+    const consumed = await tx.refreshToken.updateMany({
+      where: { id: stored.id, revokedAt: null, expiresAt: { gte: new Date() } },
+      data: { revokedAt: new Date() },
+    });
+
+    if (consumed.count !== 1) {
+      return { status: 'reused' as const, userId: stored.userId };
+    }
+
+    const { tokens, refreshTokenId } = await issueTokenPair(stored.userId, tx);
+    await tx.refreshToken.update({
+      where: { id: stored.id },
+      data: { replacedById: refreshTokenId },
+    });
+    return { status: 'rotated' as const, tokens };
   });
 
-  if (!stored || stored.userId !== userId) {
+  if (outcome.status === 'invalid') {
     throw new UnauthorizedError('Invalid or expired refresh token');
   }
 
-  if (stored.revokedAt) {
+  if (outcome.status === 'reused') {
     await prisma.refreshToken.updateMany({
-      where: { userId: stored.userId, revokedAt: null },
+      where: { userId: outcome.userId, revokedAt: null },
       data: { revokedAt: new Date() },
     });
     throw new UnauthorizedError('Refresh token reuse detected — all sessions have been revoked');
   }
 
-  if (stored.expiresAt < new Date()) {
-    throw new UnauthorizedError('Refresh token expired');
-  }
-
-  const { tokens, refreshTokenId } = await issueTokenPair(stored.userId);
-  await prisma.refreshToken.update({
-    where: { id: stored.id },
-    data: { revokedAt: new Date(), replacedById: refreshTokenId },
-  });
-
-  return { tokens };
+  return { tokens: outcome.tokens };
 }
 
-/** Idempotent by design — logging out must never fail. */
+/** Idempotent: logging out must never fail. */
 export async function logout(refreshToken: string): Promise<void> {
   await prisma.refreshToken.updateMany({
     where: { tokenHash: hashToken(refreshToken), revokedAt: null },

@@ -100,6 +100,9 @@ model Notification {
   @@index([userId, createdAt, id])
   // Unread badge count without scanning the whole inbox.
   @@index([userId, read])
+  // "Has this actor already been announced for this post?" — backs the
+  // de-duplication of repeat like notifications (like → unlike → like).
+  @@index([userId, actorId, postId, type])
   @@map("notifications")
 }
 

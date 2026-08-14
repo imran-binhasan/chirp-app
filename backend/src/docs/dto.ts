@@ -86,7 +86,6 @@ export const likeResultDto = z
 export const deviceDto = z
   .object({
     id: z.uuid(),
-    token: z.string().openapi({ example: 'fcm-registration-token...' }),
     platform: z.string().openapi({ example: 'android' }),
   })
   .openapi('Device');

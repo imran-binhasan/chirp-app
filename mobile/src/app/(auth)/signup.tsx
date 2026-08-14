@@ -9,15 +9,14 @@ import { ApiError, toApiError } from '../../api/errors';
 import { AuthScreen } from '../../components/AuthScreen';
 import { FormField } from '../../components/FormField';
 
-// Mirrors backend/src/modules/auth/auth.validation.ts so the user sees the
-// same rules before a round-trip as the server would enforce after one.
+// Mirrors backend/src/modules/auth/auth.validation.ts.
 const signupSchema = z.object({
   username: z
     .string()
     .min(3, 'Username must be at least 3 characters')
     .max(30, 'Username must be at most 30 characters')
     .regex(/^[a-zA-Z0-9_]+$/, 'Letters, numbers and underscores only'),
-  email: z.string().email('Enter a valid email address'),
+  email: z.email('Enter a valid email address'),
   password: z
     .string()
     .min(8, 'Password must be at least 8 characters')
@@ -55,8 +54,7 @@ export default function SignupScreen() {
       const apiError = toApiError(error);
       setServerErrors(apiError);
 
-      // A 409 names the taken field in its message; field-level 400s attach
-      // details. Only show the banner when neither maps onto an input.
+      // Only show the banner when the error maps onto no input.
       const mapsToField =
         apiError.fieldErrors.length > 0 ||
         (apiError.code === 'CONFLICT' && /username|email/i.test(apiError.message));

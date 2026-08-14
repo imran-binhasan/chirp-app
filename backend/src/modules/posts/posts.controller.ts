@@ -7,12 +7,11 @@ import type {
   CreateCommentInput,
   CreatePostInput,
   FeedQuery,
+  LikeInput,
   PostIdParams,
 } from './posts.validation';
 
-// req.params is typed loosely by Express 5 (wildcards can yield arrays) —
-// the validate middleware has already parsed params with the uuid schema,
-// so this cast is safe.
+// Express 5 types params loosely; validate() has already parsed them as uuids.
 const postId = (req: Request): string => (req.params as unknown as PostIdParams).id;
 
 export const createPost = asyncHandler(async (req, res) => {
@@ -34,7 +33,11 @@ export const getPost = asyncHandler(async (req, res) => {
 });
 
 export const toggleLike = asyncHandler(async (req, res) => {
-  const result = await postsService.toggleLike(req.user!.id, postId(req));
+  const result = await postsService.toggleLike(
+    req.user!.id,
+    postId(req),
+    req.body as LikeInput,
+  );
   sendSuccess(res, result);
 });
 

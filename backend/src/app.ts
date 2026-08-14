@@ -18,7 +18,9 @@ import { v1Router } from './routes';
 export function createApp(): express.Express {
   const app = express();
 
-  app.set('trust proxy', 1); // correct client IPs for the rate limiter behind a proxy
+  // Opt-in: trusting X-Forwarded-For when nothing rewrites it lets a client
+  // forge its own IP and bypass the per-IP rate limiter.
+  if (env.TRUST_PROXY > 0) app.set('trust proxy', env.TRUST_PROXY);
   app.disable('x-powered-by');
 
   app.use(requestId);
@@ -27,13 +29,27 @@ export function createApp(): express.Express {
       logger,
       genReqId: (_req, res) => (res as express.Response).locals.requestId,
       autoLogging: !env.isTest,
+      customLogLevel: (_req, res, error) => {
+        if (error || res.statusCode >= 500) return 'error';
+        if (res.statusCode >= 400) return 'warn';
+        return 'silent';
+      },
+      serializers: {
+        req: (req) => ({
+          id: req.id,
+          method: req.method,
+          url: req.url,
+          remoteAddress: req.remoteAddress,
+        }),
+        res: (res) => ({ statusCode: res.statusCode }),
+      },
     }),
   );
   app.use(helmet());
   app.use(cors({ origin: env.corsOrigins.includes('*') ? true : env.corsOrigins }));
   app.use(express.json({ limit: '16kb' }));
-  app.use(globalLimiter);
 
+  // Ahead of the limiter so health polling never spends the request budget.
   app.get(
     '/health',
     asyncHandler(async (_req, res) => {
@@ -43,9 +59,15 @@ export function createApp(): express.Express {
       } catch {
         database = 'down';
       }
-      sendSuccess(res, { status: 'ok', database, uptimeSeconds: Math.round(process.uptime()) });
+      sendSuccess(
+        res,
+        { status: database === 'up' ? 'ok' : 'degraded', database, uptimeSeconds: Math.round(process.uptime()) },
+        database === 'up' ? 200 : 503,
+      );
     }),
   );
+
+  app.use(globalLimiter);
 
   const openApiDocument = buildOpenApiDocument();
   app.get('/api/docs.json', (_req, res) => {

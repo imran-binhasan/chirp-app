@@ -4,11 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useThemeColors } from '../utils/theme';
 import { toApiError } from '../api/errors';
 
-/**
- * The three states every list screen needs. Previously each screen hand-rolled
- * its own spinner, retry block and empty message; they now share these so the
- * wording and spacing stay consistent.
- */
+/** The three states every list screen needs, so wording and spacing match. */
 
 export function LoadingState({ label = 'Loading' }: { label?: string }) {
   const theme = useThemeColors();
@@ -36,8 +32,6 @@ export function ErrorState({ error, onRetry }: ErrorStateProps) {
         color={theme.textSecondary}
       />
       <Text style={[styles.message, { color: theme.text }]}>{apiError.message}</Text>
-      {/* Always offered when a handler exists — refetching a list is harmless
-          and a dead-end error screen is worse than a redundant button. */}
       {onRetry ? (
         <TouchableOpacity
           onPress={onRetry}

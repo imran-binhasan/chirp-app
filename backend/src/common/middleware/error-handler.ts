@@ -26,7 +26,7 @@ function normalizeError(err: unknown): ParsedError {
     };
   }
 
-  // Safety net — zod errors should be caught by the validate middleware.
+  // Safety net — validate() should have caught these already.
   if (err instanceof ZodError) {
     return {
       statusCode: 400,
@@ -45,7 +45,6 @@ function normalizeError(err: unknown): ParsedError {
     }
   }
 
-  // Malformed JSON bodies from express.json().
   if (isBodyParseError(err)) {
     return { statusCode: 400, code: 'BAD_JSON', message: 'Request body is not valid JSON' };
   }
@@ -53,10 +52,7 @@ function normalizeError(err: unknown): ParsedError {
   return { statusCode: 500, code: 'INTERNAL_ERROR', message: 'Something went wrong' };
 }
 
-/**
- * Central error handler — the ONLY place errors are serialized. 5xx errors
- * are logged with the request id; clients always receive a sanitized body.
- */
+/** The only place errors are serialized. Clients always get a sanitized body. */
 export function errorHandler(
   err: unknown,
   req: Request,

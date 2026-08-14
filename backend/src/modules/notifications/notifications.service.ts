@@ -7,7 +7,7 @@ import { prisma } from '../../lib/prisma';
 import { authorSelect } from '../users/user.select';
 import type { NotificationsQuery } from './notifications.validation';
 
-interface PostInteractionNotification {
+export interface PostInteractionNotification {
   type: NotificationType;
   recipientId: string;
   actorId: string;
@@ -35,6 +35,14 @@ const isDeadTokenError = (code: string | undefined): boolean =>
   code === 'messaging/registration-token-not-registered' ||
   code === 'messaging/invalid-registration-token';
 
+const FCM_MULTICAST_LIMIT = 500;
+
+function chunks<T>(items: T[], size: number): T[][] {
+  const result: T[][] = [];
+  for (let start = 0; start < items.length; start += size) result.push(items.slice(start, start + size));
+  return result;
+}
+
 export async function listNotifications(userId: string, query: NotificationsQuery) {
   const { limit, cursor } = query;
 
@@ -53,7 +61,16 @@ export async function getUnreadCount(userId: string): Promise<number> {
   return prisma.notification.count({ where: { userId, read: false } });
 }
 
-/** Explicit state change — reading the inbox must not mutate it (GET stays safe). */
+/** Scoped by userId so a guessed id cannot reach another account's inbox. */
+export async function markOneRead(userId: string, notificationId: string): Promise<boolean> {
+  const { count } = await prisma.notification.updateMany({
+    where: { id: notificationId, userId, read: false },
+    data: { read: true },
+  });
+  return count > 0;
+}
+
+/** Explicit: reading the inbox must not mutate it, so GET stays safe. */
 export async function markAllRead(userId: string): Promise<number> {
   const { count } = await prisma.notification.updateMany({
     where: { userId, read: false },
@@ -63,15 +80,30 @@ export async function markAllRead(userId: string): Promise<number> {
 }
 
 /**
- * Persists the in-app notification, then hands push delivery off without
- * awaiting it.
+ * Writes the inbox row inside the caller's transaction, so it commits with the
+ * like or comment that caused it. Returns whether a row was actually written.
  *
- * The database write is awaited on purpose: it is a single local insert, and
- * the inbox must be consistent the moment the like/comment response returns.
- * Only the FCM round-trip — slow and failure-prone — is fire-and-forget.
+ * A like is a state, not an event: re-liking must not announce itself again,
+ * or anyone can flood an inbox by tapping the heart. Every comment notifies.
  */
-export async function notifyPostInteraction(input: PostInteractionNotification): Promise<void> {
-  await prisma.notification.create({
+export async function recordPostInteractionNotification(
+  tx: Prisma.TransactionClient,
+  input: PostInteractionNotification,
+): Promise<boolean> {
+  if (input.type === 'POST_LIKED') {
+    const alreadyAnnounced = await tx.notification.findFirst({
+      where: {
+        userId: input.recipientId,
+        actorId: input.actorId,
+        postId: input.postId,
+        type: 'POST_LIKED',
+      },
+      select: { id: true },
+    });
+    if (alreadyAnnounced) return false;
+  }
+
+  await tx.notification.create({
     data: {
       userId: input.recipientId,
       actorId: input.actorId,
@@ -79,7 +111,11 @@ export async function notifyPostInteraction(input: PostInteractionNotification):
       postId: input.postId,
     },
   });
+  return true;
+}
 
+/** Push is intentionally decoupled from the response path after persistence. */
+export function schedulePostInteractionPush(input: PostInteractionNotification): void {
   void deliverPush(input);
 }
 
@@ -95,29 +131,34 @@ async function deliverPush(input: PostInteractionNotification): Promise<void> {
     if (devices.length === 0) return;
 
     const isLike = input.type === 'POST_LIKED';
-    const response = await getFirebaseMessaging().sendEachForMulticast({
-      tokens: devices.map((device) => device.token),
-      notification: {
-        title: isLike ? 'New like' : 'New comment',
-        body: isLike
-          ? `${input.actorUsername} liked your post`
-          : `${input.actorUsername} commented: ${input.commentPreview ?? ''}`,
-      },
-      // `data` drives deep-linking when the notification is tapped.
-      data: {
-        type: input.type,
-        postId: input.postId,
-        actorUsername: input.actorUsername,
-      },
-      android: { priority: 'high' },
-    });
+    const deadTokens: string[] = [];
+    for (const deviceBatch of chunks(devices, FCM_MULTICAST_LIMIT)) {
+      // FCM rejects multicast requests larger than 500 tokens.
+      const response = await getFirebaseMessaging().sendEachForMulticast({
+        tokens: deviceBatch.map((device) => device.token),
+        notification: {
+          title: isLike ? 'New like' : 'New comment',
+          body: isLike
+            ? `${input.actorUsername} liked your post`
+            : `${input.actorUsername} commented: ${input.commentPreview ?? ''}`,
+        },
+        data: {
+          type: input.type,
+          postId: input.postId,
+          actorUsername: input.actorUsername,
+        },
+        android: { priority: 'high' },
+      });
 
-    const deadTokens = devices
-      .filter((_, index) => {
-        const result = response.responses[index];
-        return result !== undefined && !result.success && isDeadTokenError(result.error?.code);
-      })
-      .map((device) => device.token);
+      deadTokens.push(
+        ...deviceBatch
+          .filter((_, index) => {
+            const result = response.responses[index];
+            return result !== undefined && !result.success && isDeadTokenError(result.error?.code);
+          })
+          .map((device) => device.token),
+      );
+    }
 
     if (deadTokens.length > 0) {
       await prisma.deviceToken.deleteMany({ where: { token: { in: deadTokens } } });

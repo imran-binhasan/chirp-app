@@ -1,7 +1,4 @@
-/**
- * Base class for all expected ("operational") API errors.
- * The central error handler maps these onto the uniform error envelope.
- */
+/** Base class for expected errors; the error handler maps these to the envelope. */
 export class AppError extends Error {
   constructor(
     public readonly statusCode: number,

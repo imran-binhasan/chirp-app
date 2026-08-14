@@ -1,84 +1,73 @@
-# Mini Social Feed
+# Mini Social Feed (Chirp)
 
-A lightweight social app: users post text updates, browse a shared feed, like and
-comment on posts, and receive push notifications (Firebase Cloud Messaging) when
-someone interacts with their posts.
+A lightweight social app for posting text updates, browsing a shared feed, interacting via likes/comments, and receiving push notifications (Firebase Cloud Messaging).
 
-## Deliverables
+**Repository:** [https://github.com/imran-binhasan/chirp-app](https://github.com/imran-binhasan/chirp-app)
 
-- **GitHub repository:** _<add your repo URL here>_
-- **APK download (Google Drive):** _<add your Drive link here>_
+## ✅ Requirements Fulfillment
 
-## Repository layout
+**Backend** — Node.js · Express 5 · TypeScript · Prisma · PostgreSQL
 
-| Folder     | Description                                                              |
-| ---------- | ------------------------------------------------------------------------ |
-| `backend/` | Node.js + Express 5 + TypeScript + Prisma + PostgreSQL REST API with FCM |
-| `mobile/`  | React Native (Expo) app — feed, posting, interactions, push              |
+| Requirement | Delivered |
+| --- | --- |
+| Authentication: signup/login using JWT | `POST /auth/signup`, `POST /auth/login` — argon2id hashes, 15-minute access tokens, rotating refresh tokens |
+| `POST /posts` — create a text-only post | ✔ validated, max 2000 characters |
+| `GET /posts` — all posts, paginated, newest first | ✔ cursor-paginated, plus a `?username=` feed filter |
+| `POST /posts/:id/like` — like or unlike | ✔ one endpoint toggles, or send `{ liked }` explicitly |
+| `POST /posts/:id/comment` — add a comment | ✔ (`/comments` works too) |
+| FCM notifications on like/comment | ✔ push to the post's author, plus an in-app inbox |
+| API docs in the README | ✔ [`backend/README.md`](backend/README.md#-api-documentation), plus generated OpenAPI at `/api/docs` |
 
-## Quick start
+**Mobile App** — React Native · Expo · Expo Router · TanStack Query
 
+| Requirement | Delivered |
+| --- | --- |
+| Login & Signup screens | ✔ with client-side validation mirroring the server's rules |
+| Feed: scrollable posts with like + comment buttons | ✔ FlashList, optimistic likes, infinite scroll |
+| Filter the feed by username | ✔ debounced search in the feed header |
+| Create Post: text-only form | ✔ with a live character counter |
+| Firebase push notifications for likes and comments | ✔ `expo-notifications` + FCM, tapping a push opens the post |
+| *Extra points:* UI polish and responsiveness on tablet and phone | ✔ side navigation rail and a capped reading column on tablets, automatic dark mode |
+| *Extra points:* error handling and validation | ✔ one normalized error type, field-level form errors, retryable error states, a render-crash boundary |
+
+## 📂 Project Structure
+The repository is divided into two main isolated environments:
+
+```text
+.
+├── backend/    # Node.js REST API (Express 5, TypeScript, Prisma, PostgreSQL)
+└── mobile/     # React Native App (Expo, TanStack Query, FlashList)
+```
+
+## 🚀 Quick Start
+
+### 1. Backend
 ```bash
-# 1. Backend — starts PostgreSQL, applies migrations, serves on :4000
 cd backend
-cp .env.example .env          # fill in JWT secrets (min 32 chars each)
+cp .env.example .env          # fill in JWT secrets
 docker compose up -d
 npm install
 npm run prisma:deploy
+npm run prisma:seed           # optional demo data — log in as "demo" / Password123!
 npm run dev
+```
 
-# 2. Mobile — in a second terminal
+### 2. Mobile
+```bash
 cd mobile
 npm install
 echo 'EXPO_PUBLIC_API_URL=http://10.0.2.2:4000/api/v1' > .env
 npx expo start -c
 ```
+*(See `backend/README.md` and `mobile/README.md` for specific architectural details and testing instructions.)*
 
-Full setup, architecture and API reference:
 
-- [`backend/README.md`](backend/README.md) — API docs, database design, security
-- [`mobile/README.md`](mobile/README.md) — device setup, APK build, screen map
+## 🌟 Beyond the Requirements (Not Scope Creep)
+I built a few areas beyond the requested scope because they are critical for a feed app at production scale. These are necessary UX and performance implementations:
 
-Interactive API docs run at **http://localhost:4000/api/docs** once the backend is up.
-
-## Design decisions
-
-The brief asked for a "mini" app. A few areas were built to production standards
-because they are where a feed app actually breaks at scale:
-
-- **Keyset (cursor) pagination** instead of `limit`/`offset`. Offset pagination
-  skips and repeats rows when new posts arrive mid-scroll — exactly what happens
-  on a live feed. Cursors seek on a composite index and stay stable.
-- **Rotating refresh tokens.** Short-lived access tokens (15 min) plus refresh
-  tokens that are hashed at rest and rotated on every use. Replaying a rotated
-  token is treated as theft and revokes the user's entire session family.
-- **Denormalized counters in-transaction.** `likeCount` / `commentCount` move in
-  the same transaction as the like or comment, so feed cards read counts in O(1)
-  rather than aggregating per row.
-- **No N+1 on the feed.** `likedByMe` for a whole page resolves in one batched
-  query, not one query per post.
-
-## Testing
-
-```bash
-cd backend && npm test     # 35 integration tests against a real PostgreSQL
-```
-
-## Feature checklist
-
-| Requirement                                    | Status                                          |
-| ---------------------------------------------- | ----------------------------------------------- |
-| Signup / login with JWT                        | ✅ argon2id, access + rotating refresh tokens   |
-| `POST /posts` — create text post               | ✅ 2000 char limit, validated                    |
-| `GET /posts` — paginated, newest first         | ✅ cursor-based                                  |
-| `POST /posts/:id/like` — like/unlike           | ✅ idempotent toggle, race-proof                 |
-| `POST /posts/:id/comment` — add comment        | ✅ (`/comments` also accepted)                   |
-| FCM push on like & comment                     | ✅ + in-app inbox, dead-token pruning            |
-| Login & signup screens                         | ✅ inline validation                             |
-| Feed with like + comment buttons               | ✅ optimistic likes                              |
-| Filter newsfeed by username                    | ✅ search control in the feed header             |
-| Create-post form                               | ✅ live character counter                        |
-| Push notifications received in-app             | ✅ tap deep-links to the post                    |
-| API docs in README                             | ✅ + generated OpenAPI at `/api/docs`            |
-| Tablet & phone support                         | ✅ responsive layout, orientation unlocked       |
-| Error handling & validation                    | ✅ zod on every input, uniform error envelope    |
+- **Keyset (cursor) pagination** instead of `limit`/`offset`. Offset pagination skips and repeats rows when new posts arrive mid-scroll. Cursors seek on a composite index and stay stable.
+- **Rotating refresh tokens.** Short-lived access tokens (15 min) plus refresh tokens that are hashed at rest and rotated on every use. Replaying a rotated token revokes the user's entire session family (theft detection).
+- **Denormalized counters in-transaction.** `likeCount` / `commentCount` move in the same transaction as the like or comment, allowing O(1) feed reads.
+- **No N+1 on the feed.** `likedByMe` for a whole page resolves in one batched query, rather than one query per post.
+- **In-App Notification Table.** Added an in-app inbox tab. Relying solely on push notifications is poor UX when a user dismisses a push; they need a central place to see interactions.
+- **Offline-First Feed Caching.** Implemented `@tanstack/react-query-persist-client` with AsyncStorage so the feed loads instantly on a cold boot without network.

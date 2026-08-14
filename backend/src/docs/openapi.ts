@@ -6,13 +6,17 @@ import {
   refreshSchema,
   signupSchema,
 } from '../modules/auth/auth.validation';
-import { deviceTokenParamsSchema, registerDeviceSchema } from '../modules/devices/devices.validation';
-import { notificationsQuerySchema } from '../modules/notifications/notifications.validation';
+import { registerDeviceSchema, unregisterDeviceSchema } from '../modules/devices/devices.validation';
+import {
+  notificationIdParamsSchema,
+  notificationsQuerySchema,
+} from '../modules/notifications/notifications.validation';
 import {
   commentsQuerySchema,
   createCommentSchema,
   createPostSchema,
   feedQuerySchema,
+  likeSchema,
   postIdParamsSchema,
 } from '../modules/posts/posts.validation';
 import {
@@ -178,10 +182,10 @@ registry.registerPath({
   tags: ['Interactions'],
   summary: 'Toggle like on a post',
   description:
-    'Idempotent toggle: first call likes, second call un-likes. The response carries the ' +
-    'authoritative state. Liking someone else\'s post sends them an FCM push notification.',
+    'Set `liked` to true or false for retry-safe state changes. Omitting it preserves legacy toggle ' +
+    'behaviour. Liking someone else\'s post sends them an FCM push notification.',
   security: bearer,
-  request: { params: postIdParamsSchema },
+  request: { params: postIdParamsSchema, body: jsonBody(likeSchema) },
   responses: {
     200: ok('Authoritative like state', likeResultDto),
     401: err('Missing/invalid access token'),
@@ -251,11 +255,11 @@ registry.registerPath({
 
 registry.registerPath({
   method: 'delete',
-  path: '/devices/{token}',
+  path: '/devices',
   tags: ['Devices'],
   summary: 'Unregister an FCM device token on logout (idempotent)',
   security: bearer,
-  request: { params: deviceTokenParamsSchema },
+  request: { body: jsonBody(unregisterDeviceSchema) },
   responses: {
     200: ok('Device unregistered', messageDto),
     401: err('Missing/invalid access token'),
@@ -299,6 +303,23 @@ registry.registerPath({
   security: bearer,
   responses: {
     200: ok('Number of rows updated', markReadResultDto),
+    401: err('Missing/invalid access token'),
+  },
+});
+
+registry.registerPath({
+  method: 'post',
+  path: '/notifications/{id}/read',
+  tags: ['Notifications'],
+  summary: 'Mark a single notification as read (idempotent)',
+  description:
+    'Scoped to your own inbox. Returns `updated: 0` when the notification does not exist, ' +
+    'is not yours, or was already read — never a 404, so a double-tap is harmless.',
+  security: bearer,
+  request: { params: notificationIdParamsSchema },
+  responses: {
+    200: ok('Number of rows updated (0 or 1)', markReadResultDto),
+    400: err('Invalid notification id'),
     401: err('Missing/invalid access token'),
   },
 });

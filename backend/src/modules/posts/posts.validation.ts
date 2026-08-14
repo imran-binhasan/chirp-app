@@ -19,6 +19,9 @@ export const createCommentSchema = z.object({
   content: trimmedString(1000),
 });
 
+/** Explicit state makes a retried request idempotent. Omit to plain-toggle. */
+export const likeSchema = z.object({ liked: z.boolean().optional() }).default({});
+
 export const commentsQuerySchema = z.object({
   ...paginationQueryFields,
 });
@@ -28,3 +31,4 @@ export type FeedQuery = z.infer<typeof feedQuerySchema>;
 export type PostIdParams = z.infer<typeof postIdParamsSchema>;
 export type CreateCommentInput = z.infer<typeof createCommentSchema>;
 export type CommentsQuery = z.infer<typeof commentsQuerySchema>;
+export type LikeInput = z.infer<typeof likeSchema>;

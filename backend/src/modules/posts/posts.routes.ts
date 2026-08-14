@@ -7,6 +7,7 @@ import {
   createCommentSchema,
   createPostSchema,
   feedQuerySchema,
+  likeSchema,
   postIdParamsSchema,
 } from './posts.validation';
 
@@ -18,14 +19,18 @@ postsRouter.post('/', validate({ body: createPostSchema }), controller.createPos
 postsRouter.get('/', validate({ query: feedQuerySchema }), controller.getFeed);
 postsRouter.get('/:id', validate({ params: postIdParamsSchema }), controller.getPost);
 
-postsRouter.post('/:id/like', validate({ params: postIdParamsSchema }), controller.toggleLike);
+postsRouter.post(
+  '/:id/like',
+  validate({ params: postIdParamsSchema, body: likeSchema }),
+  controller.toggleLike,
+);
 
 postsRouter.post(
   '/:id/comments',
   validate({ params: postIdParamsSchema, body: createCommentSchema }),
   controller.addComment,
 );
-// Alias: the task spec uses singular `/comment`, so support both forms.
+// Singular alias for the same handler; both spellings are supported.
 postsRouter.post(
   '/:id/comment',
   validate({ params: postIdParamsSchema, body: createCommentSchema }),

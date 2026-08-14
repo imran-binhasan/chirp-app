@@ -1,11 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import type { NextFunction, Request, Response } from 'express';
 
-/**
- * Assigns a correlation id to every request (honouring an inbound
- * X-Request-Id from a proxy/client). Surfaced in response headers, the
- * response envelope's meta.requestId, and log lines.
- */
+/** Correlation id for every request, echoed in headers, logs and meta. */
 export function requestId(req: Request, res: Response, next: NextFunction): void {
   const incoming = req.headers['x-request-id'];
   const id =

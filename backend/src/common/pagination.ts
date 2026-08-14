@@ -2,12 +2,9 @@ import { z } from 'zod';
 import { ValidationError } from './errors/app-error';
 
 /**
- * Keyset (cursor) pagination helpers.
- *
- * The cursor is an opaque base64url token encoding the (createdAt, id) of the
- * last item of the previous page. Keyset seeks are O(log n) via the composite
- * indexes and — unlike OFFSET — never drift when new rows are inserted while
- * the user scrolls.
+ * Keyset pagination. The cursor is an opaque base64url token holding the
+ * (createdAt, id) of the previous page's last row. Unlike OFFSET, it never
+ * skips or repeats rows when new posts arrive mid-scroll.
  */
 
 const cursorPayloadSchema = z.object({
@@ -37,7 +34,6 @@ export function decodeCursor(raw: string): Cursor {
   }
 }
 
-/** Shared query-string fields for every paginated endpoint. */
 export const paginationQueryFields = {
   limit: z.coerce.number().int().min(1).max(50).default(20),
   cursor: z.string().max(200).optional(),
@@ -49,11 +45,7 @@ export interface PaginationMeta {
   limit: number;
 }
 
-/**
- * Keyset WHERE clause: rows strictly older than the cursor position.
- * Shape is identical for every newest-first model, so each paginated
- * resource composes this instead of rebuilding the OR condition.
- */
+/** Rows strictly older than the cursor position. */
 export function keysetWhere(rawCursor: string | undefined): {
   OR?: [{ createdAt: { lt: Date } }, { createdAt: Date; id: { lt: string } }];
 } {
@@ -68,8 +60,8 @@ export function keysetWhere(rawCursor: string | undefined): {
 }
 
 /**
- * Splits a `limit + 1` probe result into the page plus its cursor metadata.
- * The extra row is what tells us another page exists without a COUNT(*).
+ * Splits a `limit + 1` query result into the page and its cursor metadata.
+ * The extra row is how we know more exist without a COUNT(*).
  */
 export function buildPagination<T extends { createdAt: Date; id: string }>(
   rows: T[],

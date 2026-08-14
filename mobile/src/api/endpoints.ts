@@ -8,6 +8,7 @@ import type {
   FeedParams,
   LikeResult,
   LoginRequest,
+  MarkReadResult,
   Notification,
   Page,
   Post,
@@ -16,11 +17,7 @@ import type {
   User,
 } from '../types/api';
 
-/**
- * Every API route the app calls, in one place. Screens import these instead of
- * writing URL strings, so a route change is a one-line edit and every call site
- * is typed end to end.
- */
+/** Every API route the app calls. Screens import these instead of URL strings. */
 
 export const authApi = {
   signup: (body: SignupRequest) => post<AuthResponse>('/auth/signup', body),
@@ -41,7 +38,7 @@ export const postsApi = {
 
   create: (content: string) => post<Post>('/posts', { content }),
 
-  toggleLike: (postId: string) => post<LikeResult>(`/posts/${postId}/like`),
+  toggleLike: (postId: string, liked: boolean) => post<LikeResult>(`/posts/${postId}/like`, { liked }),
 
   comments: (postId: string, params: CursorParams): Promise<Page<Comment>> =>
     getPage<Comment>(`/posts/${postId}/comments`, {
@@ -62,12 +59,15 @@ export const notificationsApi = {
 
   unreadCount: () => get<UnreadCount>('/notifications/unread-count'),
 
-  markAllRead: () => post<{ updated: number }>('/notifications/read'),
+  markRead: (notificationId: string) =>
+    post<MarkReadResult>(`/notifications/${notificationId}/read`),
+
+  markAllRead: () => post<MarkReadResult>('/notifications/read'),
 };
 
 export const devicesApi = {
   register: (token: string, platform: DevicePlatform) =>
     post<Device>('/devices', { token, platform }),
 
-  unregister: (token: string) => del<{ message: string }>(`/devices/${encodeURIComponent(token)}`),
+  unregister: (token: string) => del<{ message: string }>('/devices', { token }),
 };

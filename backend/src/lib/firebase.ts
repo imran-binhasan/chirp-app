@@ -6,8 +6,7 @@ import { logger } from './logger';
 let firebaseApp: App | null = null;
 
 /**
- * Lazily initialised on first use — the API must boot (and tests must pass)
- * even when Firebase credentials are not configured. Callers must check
+ * Lazy so the API boots without Firebase credentials. Callers must check
  * `env.firebaseConfigured` first.
  */
 export function getFirebaseMessaging(): Messaging {

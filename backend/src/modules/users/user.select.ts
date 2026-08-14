@@ -1,12 +1,12 @@
 import type { Prisma } from '@prisma/client';
 
-/** Public author summary embedded in posts/comments — safe to expose anywhere. */
+/** Safe to expose to anyone. */
 export const authorSelect = {
   id: true,
   username: true,
 } satisfies Prisma.UserSelect;
 
-/** Fields returned for the authenticated user (signup/login/auth me). */
+/** Only ever returned to the account it describes. */
 export const userSelfSelect = {
   ...authorSelect,
   email: true,

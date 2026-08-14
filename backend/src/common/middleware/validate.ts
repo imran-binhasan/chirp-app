@@ -9,10 +9,7 @@ interface ValidationSchemas {
   params?: ZodType;
 }
 
-/**
- * Validates (and replaces) request parts with the zod-parsed output, so
- * controllers always work with clean, typed, transformed data.
- */
+/** Replaces request parts with their parsed output, so controllers get clean data. */
 export const validate =
   (schemas: ValidationSchemas) =>
   (req: Request, _res: Response, next: NextFunction): void => {

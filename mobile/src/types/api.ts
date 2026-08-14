@@ -1,9 +1,6 @@
 /**
- * Wire types for the Mini Social Feed API.
- *
- * These mirror the backend's response DTOs (`backend/src/docs/dto.ts`). They are
- * the single source of truth for API shapes on this side — screens and hooks
- * import from here rather than re-describing responses inline.
+ * Wire types for the Mini Social Feed API, mirroring the backend's response
+ * DTOs in `backend/src/docs/dto.ts`.
  */
 
 /** Every endpoint — success and failure — responds in this envelope. */
@@ -118,9 +115,13 @@ export interface UnreadCount {
   unread: number;
 }
 
+/** Rows the server actually flipped — 0 when the notification was already read. */
+export interface MarkReadResult {
+  updated: number;
+}
+
 export interface Device {
   id: string;
-  token: string;
   platform: DevicePlatform;
 }
 

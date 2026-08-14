@@ -1,0 +1,52 @@
+# Upload rules for EAS Build. When this file exists it REPLACES .gitignore for
+# deciding what gets sent to the build servers.
+#
+# It exists for one reason: google-services.json is gitignored, but app.json
+# points `android.googleServicesFile` at it, so a build without it fails while
+# configuring Firebase. Everything below mirrors .gitignore — minus that file.
+
+node_modules/
+
+# Expo / Metro
+.expo/
+dist/
+web-build/
+expo-env.d.ts
+.metro-health-check*
+
+# Native projects are regenerated from app.json by prebuild on the build server
+/ios
+/android
+.kotlin/
+
+# Signing material — EAS holds these as credentials, never in the upload
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision
+*.pem
+
+# Build outputs
+*.apk
+*.aab
+
+# Tests and tooling
+coverage/
+.idea/
+.vscode/
+*.tsbuildinfo
+*.orig.*
+
+# Logs
+npm-debug.*
+yarn-debug.*
+yarn-error.*
+
+# Local dev config never travels to the build servers — a build's values come
+# from the profile's `env` block in eas.json (or an EAS secret).
+.env
+.env.*
+
+# OS
+.DS_Store

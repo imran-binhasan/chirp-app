@@ -26,13 +26,11 @@ export default function ProfileScreen() {
   const { posts, isLoading, isError, error, refetch, refreshing, onRefresh, loadMore, isFetchingNextPage } =
     usePostList({ queryKey, username, enabled: Boolean(username) });
 
-  const likeMutation = useLikeMutation(queryKey);
+  const { toggle: toggleLike } = useLikeMutation();
 
   const renderPost = useCallback(
-    ({ item }: { item: Post }) => (
-      <PostCard post={item} onLike={(id) => likeMutation.mutate(id)} />
-    ),
-    [likeMutation],
+    ({ item }: { item: Post }) => <PostCard post={item} onLike={toggleLike} />,
+    [toggleLike],
   );
 
   const confirmLogout = useCallback(() => {

@@ -2,13 +2,18 @@ import type { Prisma } from '@prisma/client';
 import { NotFoundError } from '../../common/errors/app-error';
 import { buildPagination, keysetWhere } from '../../common/pagination';
 import { prisma } from '../../lib/prisma';
-import { notifyPostInteraction } from '../notifications/notifications.service';
+import {
+  recordPostInteractionNotification,
+  schedulePostInteractionPush,
+  type PostInteractionNotification,
+} from '../notifications/notifications.service';
 import { authorSelect } from '../users/user.select';
 import type {
   CommentsQuery,
   CreateCommentInput,
   CreatePostInput,
   FeedQuery,
+  LikeInput,
 } from './posts.validation';
 
 const authorRelation = { author: { select: authorSelect } } as const;
@@ -86,28 +91,46 @@ export async function getPostById(postId: string, viewerId: string) {
 }
 
 /**
- * Like toggle. The @@unique([userId, postId]) constraint makes this
- * idempotent and race-proof; the counter moves in the same transaction so
- * feeds read counts in O(1).
+ * Sends `liked` explicitly for retry-safe behaviour; omitting it toggles.
+ * State changes are serialised under a row lock — the unique constraint alone
+ * prevents duplicate rows but still lets concurrent toggles surface a P2002.
  */
-export async function toggleLike(userId: string, postId: string) {
-  const post = await prisma.post.findUnique({
-    where: { id: postId },
-    select: { id: true, authorId: true },
-  });
-  if (!post) throw new NotFoundError('Post not found');
-
+export async function toggleLike(userId: string, postId: string, input: LikeInput = {}) {
   const result = await prisma.$transaction(async (tx) => {
-    const existing = await tx.like.findUnique({ where: { userId_postId: { userId, postId } } });
+    await tx.$queryRaw`SELECT 1 FROM "posts" WHERE "id" = ${postId} FOR UPDATE`;
+    const post = await tx.post.findUnique({
+      where: { id: postId },
+      select: { authorId: true, likeCount: true },
+    });
+    if (!post) throw new NotFoundError('Post not found');
 
-    if (existing) {
+    const existing = await tx.like.findUnique({ where: { userId_postId: { userId, postId } } });
+    const shouldLike = input.liked ?? !existing;
+
+    if (existing && !shouldLike) {
       await tx.like.delete({ where: { userId_postId: { userId, postId } } });
       const updated = await tx.post.update({
         where: { id: postId },
         data: { likeCount: { decrement: 1 } },
         select: { likeCount: true },
       });
-      return { liked: false, likeCount: updated.likeCount, actorUsername: null as string | null };
+      return {
+        liked: false,
+        likeCount: updated.likeCount,
+        authorId: post.authorId,
+        actorUsername: null as string | null,
+        notification: null as PostInteractionNotification | null,
+      };
+    }
+
+    if (existing) {
+      return {
+        liked: true,
+        likeCount: post.likeCount,
+        authorId: post.authorId,
+        actorUsername: null as string | null,
+        notification: null as PostInteractionNotification | null,
+      };
     }
 
     const created = await tx.like.create({
@@ -119,30 +142,40 @@ export async function toggleLike(userId: string, postId: string) {
       data: { likeCount: { increment: 1 } },
       select: { likeCount: true },
     });
-    return { liked: true, likeCount: updated.likeCount, actorUsername: created.user.username };
+    const candidate: PostInteractionNotification | null =
+      post.authorId === userId
+        ? null
+        : {
+            type: 'POST_LIKED',
+            recipientId: post.authorId,
+            actorId: userId,
+            actorUsername: created.user.username,
+            postId,
+          };
+    // Only push when the inbox row was new; a re-like is not worth a second buzz.
+    const announced = candidate ? await recordPostInteractionNotification(tx, candidate) : false;
+
+    return {
+      liked: true,
+      likeCount: updated.likeCount,
+      authorId: post.authorId,
+      actorUsername: created.user.username,
+      notification: announced ? candidate : null,
+    };
   });
 
-  if (result.liked && post.authorId !== userId && result.actorUsername) {
-    await notifyPostInteraction({
-      type: 'POST_LIKED',
-      recipientId: post.authorId,
-      actorId: userId,
-      actorUsername: result.actorUsername,
-      postId,
-    });
-  }
+  if (result.notification) schedulePostInteractionPush(result.notification);
 
   return { liked: result.liked, likeCount: result.likeCount };
 }
 
 export async function addComment(userId: string, postId: string, input: CreateCommentInput) {
-  const post = await prisma.post.findUnique({
-    where: { id: postId },
-    select: { id: true, authorId: true },
-  });
-  if (!post) throw new NotFoundError('Post not found');
-
-  const comment = await prisma.$transaction(async (tx) => {
+  const result = await prisma.$transaction(async (tx) => {
+    const post = await tx.post.findUnique({
+      where: { id: postId },
+      select: { authorId: true },
+    });
+    if (!post) throw new NotFoundError('Post not found');
     const created = await tx.comment.create({
       data: { postId, authorId: userId, content: input.content },
       include: authorRelation,
@@ -151,21 +184,24 @@ export async function addComment(userId: string, postId: string, input: CreateCo
       where: { id: postId },
       data: { commentCount: { increment: 1 } },
     });
-    return created;
+    const notification: PostInteractionNotification | null =
+      post.authorId === userId
+        ? null
+        : {
+            type: 'POST_COMMENTED',
+            recipientId: post.authorId,
+            actorId: userId,
+            actorUsername: created.author.username,
+            postId,
+            commentPreview: created.content.slice(0, 80),
+          };
+    if (notification) await recordPostInteractionNotification(tx, notification);
+    return { comment: created, notification };
   });
 
-  if (post.authorId !== userId) {
-    await notifyPostInteraction({
-      type: 'POST_COMMENTED',
-      recipientId: post.authorId,
-      actorId: userId,
-      actorUsername: comment.author.username,
-      postId,
-      commentPreview: comment.content.slice(0, 80),
-    });
-  }
+  if (result.notification) schedulePostInteractionPush(result.notification);
 
-  return toCommentResponse(comment);
+  return toCommentResponse(result.comment);
 }
 
 export async function getComments(postId: string, query: CommentsQuery) {

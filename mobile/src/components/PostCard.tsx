@@ -12,7 +12,7 @@ import type { Post } from '../types/api';
 
 interface PostCardProps {
   post: Post;
-  onLike: (postId: string) => void;
+  onLike: (post: Post) => void;
 }
 
 export const PostCard = React.memo(({ post, onLike }: PostCardProps) => {
@@ -20,7 +20,7 @@ export const PostCard = React.memo(({ post, onLike }: PostCardProps) => {
   const router = useRouter();
   const { gutter, avatarSize } = useResponsive();
 
-  const handleLike = useCallback(() => onLike(post.id), [onLike, post.id]);
+  const handleLike = useCallback(() => onLike(post), [onLike, post]);
   const handlePostPress = useCallback(() => router.push(`/post/${post.id}`), [router, post.id]);
   const handleAvatarPress = useCallback(
     () => router.push(`/user/${post.author.username}`),

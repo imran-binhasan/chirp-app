@@ -2,10 +2,7 @@ import type { NextFunction, Request, Response } from 'express';
 import { verifyAccessToken } from '../../lib/jwt';
 import { UnauthorizedError } from '../errors/app-error';
 
-/**
- * JWT guard. Stateless (no DB lookup — O(1) verification); the token type
- * claim prevents refresh tokens from being used as access tokens.
- */
+/** Stateless JWT guard. The type claim stops refresh tokens being used here. */
 export function authenticate(req: Request, _res: Response, next: NextFunction): void {
   const header = req.headers.authorization;
   if (!header || !header.startsWith('Bearer ')) {

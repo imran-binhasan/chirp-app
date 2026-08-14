@@ -12,7 +12,13 @@ type Segment =
   | { type: 'url'; value: string }
   | { type: 'mention'; value: string; username: string };
 
-const PATTERN = /(https?:\/\/[^\s]+)|@(\w+)/g;
+/**
+ * URLs first, so an `@` inside a link stays part of the link. A mention must
+ * then start the string or follow a non-word character, or the domain of
+ * "jane@example.com" becomes a profile link. The boundary is captured rather
+ * than looked behind: lookbehind support varies across React Native's engines.
+ */
+const PATTERN = /(https?:\/\/\S+)|(^|[^\w@])@(\w+)/g;
 
 function parse(text: string): Segment[] {
   const segments: Segment[] = [];
@@ -26,8 +32,11 @@ function parse(text: string): Segment[] {
 
     if (match[1]) {
       segments.push({ type: 'url', value: match[1] });
-    } else if (match[2]) {
-      segments.push({ type: 'mention', value: match[0], username: match[2] });
+    } else if (match[3]) {
+      // The boundary character is prose, not part of the link.
+      const boundary = match[2];
+      if (boundary) segments.push({ type: 'text', value: boundary });
+      segments.push({ type: 'mention', value: `@${match[3]}`, username: match[3] });
     }
 
     lastIndex = index + match[0].length;
@@ -45,7 +54,6 @@ const LINK_COLOR = '#1D9BF0';
 /** Renders post/comment bodies with tappable links and @mentions. */
 export const ParsedText = React.memo(({ text, style }: ParsedTextProps) => {
   const router = useRouter();
-  // Parsing every post body on every list re-render is wasted work.
   const segments = useMemo(() => parse(text), [text]);
 
   return (

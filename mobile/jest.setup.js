@@ -21,6 +21,13 @@ jest.mock('expo-secure-store', () => {
   };
 });
 
+// ─── @react-native-async-storage/async-storage ───────────────────────────────
+// Reached transitively through the query-cache persister; the real module
+// throws outside a native runtime. The package ships its own in-memory mock.
+jest.mock('@react-native-async-storage/async-storage', () =>
+  require('@react-native-async-storage/async-storage/jest/async-storage-mock'),
+);
+
 // ─── @expo/vector-icons ──────────────────────────────────────────────────────
 // Pulls in expo-font → expo-asset, which isn't resolvable in the jest env.
 // Icons carry no logic worth exercising, so render them as plain views.

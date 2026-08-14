@@ -13,8 +13,7 @@ const createLimiter = (limit: number) =>
       sendError(res, 429, 'RATE_LIMITED', 'Too many requests, please try again later'),
   });
 
-/** Applied globally to every request. */
 export const globalLimiter = createLimiter(env.RATE_LIMIT_MAX);
 
-/** Stricter bucket for credential endpoints (signup/login/refresh). */
+/** Stricter bucket for credential endpoints. */
 export const authLimiter = createLimiter(env.AUTH_RATE_LIMIT_MAX);

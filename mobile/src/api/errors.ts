@@ -2,11 +2,8 @@ import axios from 'axios';
 import type { ApiErrorBody, ApiErrorCode, FieldError } from '../types/api';
 
 /**
- * The single error type the rest of the app deals with.
- *
- * Anything thrown by the API layer is normalized into one of these, so screens
- * never inspect `axios.isAxiosError`, HTTP status codes, or response bodies.
- * `message` is always safe to show a user.
+ * The only error type the app deals with. Screens never inspect axios errors,
+ * status codes or response bodies, and `message` is always safe to display.
  */
 export class ApiError extends Error {
   readonly code: ApiErrorCode;
@@ -45,10 +42,7 @@ export class ApiError extends Error {
   }
 }
 
-/**
- * Messages shown when the server didn't supply one worth surfacing.
- * Written for end users: what happened, and what to do about it.
- */
+/** Shown when the server supplied nothing worth surfacing. */
 const FALLBACK_MESSAGE: Record<ApiErrorCode, string> = {
   VALIDATION_ERROR: 'Please check the highlighted fields and try again.',
   BAD_JSON: 'Something went wrong sending that request. Please try again.',
@@ -75,11 +69,9 @@ const isApiErrorBody = (value: unknown): value is ApiErrorBody =>
   typeof value === 'object' && value !== null && 'code' in value && 'message' in value;
 
 /**
- * Converts anything thrown during a request into an ApiError.
- *
- * Server-authored 4xx messages are shown as-is because the backend writes them
- * for end users ("Username is already taken"). 5xx messages are replaced —
- * they may leak internals and mean nothing to a person.
+ * 4xx messages are shown as-is: the backend writes them for end users
+ * ("Username is already taken"). 5xx messages are replaced — they mean nothing
+ * to a person and may leak internals.
  */
 export function toApiError(error: unknown): ApiError {
   if (error instanceof ApiError) return error;

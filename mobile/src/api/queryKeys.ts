@@ -1,9 +1,7 @@
 /**
- * Every react-query cache key in the app.
- *
- * Invalidation only works when the writer and the reader spell the key the same
- * way, so the keys live here instead of as literals scattered across screens.
- * The `as const` tuples let TypeScript catch a mismatch at compile time.
+ * Every cache key in the app. Invalidation only works when writer and reader
+ * spell the key identically, and the `as const` tuples make a mismatch a
+ * compile error rather than a silently stale screen.
  */
 export const queryKeys = {
   /** Matches every feed variant, filtered or not — use to invalidate all. */

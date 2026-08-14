@@ -3,10 +3,9 @@ import Constants, { AppOwnership, ExecutionEnvironment } from 'expo-constants';
 type NotificationsModule = typeof import('expo-notifications');
 
 /**
- * Expo Go dropped remote-push support with SDK 53, and the module now throws
- * while it is being evaluated — a static `import` therefore takes down every
- * route that transitively imports it, not just the push code path. Detect the
- * client up front so the module is never required there.
+ * Expo Go dropped remote push in SDK 53, and the module now throws while being
+ * evaluated — a static import would take down every route that reaches it, not
+ * just the push path. Detect the host up front and never require it there.
  */
 export const isExpoGo =
   Constants.executionEnvironment === ExecutionEnvironment.StoreClient ||
@@ -18,10 +17,7 @@ export const isPushSupported = !isExpoGo;
 // `undefined` means "not resolved yet", `null` means "resolved to unavailable".
 let cached: NotificationsModule | null | undefined;
 
-/**
- * Returns expo-notifications, or null when push is unavailable. Callers must
- * treat null as "run without push" rather than as an error.
- */
+/** Null means "run without push", not "something went wrong". */
 export function getNotifications(): NotificationsModule | null {
   if (cached !== undefined) return cached;
 
@@ -32,7 +28,7 @@ export function getNotifications(): NotificationsModule | null {
   }
 
   try {
-    // Deliberately a require: it must not run until we know the host supports it.
+    // A require, not an import: it must not run until the host is known good.
     const notifications = require('expo-notifications') as NotificationsModule;
     notifications.setNotificationHandler({
       handleNotification: async () => ({

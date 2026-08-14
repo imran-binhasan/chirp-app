@@ -5,16 +5,19 @@ import type { LoginInput, RefreshInput, SignupInput } from './auth.validation';
 
 export const signup = asyncHandler(async (req, res) => {
   const result = await authService.signup(req.body as SignupInput);
+  res.setHeader('Cache-Control', 'no-store');
   sendSuccess(res, result, 201);
 });
 
 export const login = asyncHandler(async (req, res) => {
   const result = await authService.login(req.body as LoginInput);
+  res.setHeader('Cache-Control', 'no-store');
   sendSuccess(res, result);
 });
 
 export const refresh = asyncHandler(async (req, res) => {
   const result = await authService.refresh((req.body as RefreshInput).refreshToken);
+  res.setHeader('Cache-Control', 'no-store');
   sendSuccess(res, result);
 });
 

@@ -9,14 +9,25 @@ import { useResponsive } from '../../utils/responsive';
 import { ScreenContainer } from '../../components/ScreenContainer';
 import { UserAvatar } from '../../components/UserAvatar';
 import { PostCard } from '../../components/PostCard';
+import { RequireAuth } from '../../components/RequireAuth';
 import { EmptyState, ErrorState, LoadingState } from '../../components/StateViews';
 import { useLikeMutation } from '../../hooks/useLikeMutation';
 import { usePostList } from '../../hooks/usePostList';
 import type { Post } from '../../types/api';
 
-export default function UserProfileScreen() {
+/** Reachable by deep link and from an @mention in any post body. */
+export default function UserProfileRoute() {
+  return (
+    <RequireAuth>
+      <UserProfileScreen />
+    </RequireAuth>
+  );
+}
+
+function UserProfileScreen() {
   const params = useLocalSearchParams<{ username: string }>();
-  const username = params.username ?? '';
+  // Lowercased to keep /user/JaneDoe and /user/janedoe on one cache entry.
+  const username = (params.username ?? '').toLowerCase();
   const theme = useThemeColors();
   const router = useRouter();
   const { gutter } = useResponsive();
@@ -25,13 +36,11 @@ export default function UserProfileScreen() {
   const { posts, isLoading, isError, error, refetch, refreshing, onRefresh, loadMore, isFetchingNextPage } =
     usePostList({ queryKey, username, enabled: Boolean(username) });
 
-  const likeMutation = useLikeMutation(queryKey);
+  const { toggle: toggleLike } = useLikeMutation();
 
   const renderPost = useCallback(
-    ({ item }: { item: Post }) => (
-      <PostCard post={item} onLike={(id) => likeMutation.mutate(id)} />
-    ),
-    [likeMutation],
+    ({ item }: { item: Post }) => <PostCard post={item} onLike={toggleLike} />,
+    [toggleLike],
   );
 
   return (

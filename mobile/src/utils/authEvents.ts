@@ -1,8 +1,8 @@
 import { DeviceEventEmitter } from 'react-native';
 
 /**
- * Bridges the axios interceptor (outside React) to the auth state (inside it).
- * Fired when a session ends involuntarily — refresh failed or was revoked.
+ * Bridges the axios interceptor, which lives outside React, to the auth state
+ * inside it. Fires when a session ends involuntarily.
  */
 const SESSION_EXPIRED = 'auth:session-expired';
 

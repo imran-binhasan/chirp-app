@@ -20,7 +20,6 @@ coverage/
 .DS_Store
 
 # Local tooling config
-.claude/
 .idea/
 .vscode/
 

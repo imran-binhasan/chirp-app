@@ -29,13 +29,13 @@ describe('PostCard', () => {
     expect(screen.getByText('2')).toBeTruthy();
   });
 
-  it('calls onLike with the post id', async () => {
+  it('calls onLike with the current post state', async () => {
     const onLike = jest.fn();
     await render(<PostCard post={post} onLike={onLike} />);
 
     await fireEvent.press(screen.getByLabelText(/^Like\./));
 
-    expect(onLike).toHaveBeenCalledWith('post-1');
+    expect(onLike).toHaveBeenCalledWith(post);
   });
 
   it('labels the like control by current state for screen readers', async () => {

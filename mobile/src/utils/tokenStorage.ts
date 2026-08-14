@@ -1,9 +1,6 @@
 import * as SecureStore from 'expo-secure-store';
 
-/**
- * Single owner of every credential key. Screens and interceptors go through
- * these helpers so a key is never spelled out (and mistyped) in two places.
- */
+/** Single owner of every credential key, so none is ever spelled out twice. */
 const ACCESS_TOKEN = 'accessToken';
 const REFRESH_TOKEN = 'refreshToken';
 const PUSH_TOKEN = 'devicePushToken';

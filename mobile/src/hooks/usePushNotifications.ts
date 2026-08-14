@@ -38,29 +38,30 @@ async function registerDevice(): Promise<void> {
       : (await Notifications.requestPermissionsAsync()).status === 'granted';
   if (!granted) return;
 
-  // getDevicePushTokenAsync returns the raw FCM token, which is what the
-  // backend's firebase-admin sendEachForMulticast expects.
+  // The raw FCM token, which is what firebase-admin expects server-side.
   const { data: token } = await Notifications.getDevicePushTokenAsync();
 
   await devicesApi.register(token, Platform.OS === 'ios' ? 'ios' : 'android');
-  // Remembered so logout can unregister this device server-side.
+  // Remembered so logout can unregister this device.
   await savePushToken(token);
 }
 
-export function usePushNotifications() {
+export function usePushNotifications(enabled: boolean) {
   const router = useRouter();
   const queryClient = useQueryClient();
 
   useEffect(() => {
+    if (!enabled) return;
     registerDevice().catch((error: unknown) => {
       console.warn(
         'Push registration failed:',
         error instanceof Error ? error.message : String(error),
       );
     });
-  }, []);
+  }, [enabled]);
 
   useEffect(() => {
+    if (!enabled) return;
     const Notifications = getNotifications();
     if (!Notifications) return;
 
@@ -89,5 +90,5 @@ export function usePushNotifications() {
       tapSub.remove();
       receiveSub.remove();
     };
-  }, [router, queryClient]);
+  }, [enabled, router, queryClient]);
 }

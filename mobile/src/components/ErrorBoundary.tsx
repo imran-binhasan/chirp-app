@@ -10,11 +10,8 @@ interface State {
 }
 
 /**
- * Last line of defence for render-time crashes.
- *
- * Without this a thrown error unmounts the whole React tree and the user is
- * left staring at a blank screen with no way back. Network failures are handled
- * upstream by ApiError — this catches the bugs we didn't predict.
+ * Catches render-time crashes, which would otherwise unmount the whole tree
+ * and leave the user on a blank screen. Network failures are ApiError's job.
  */
 export class ErrorBoundary extends React.Component<Props, State> {
   state: State = { error: null };
@@ -24,7 +21,7 @@ export class ErrorBoundary extends React.Component<Props, State> {
   }
 
   componentDidCatch(error: Error, info: React.ErrorInfo): void {
-    // A crash reporter (Sentry, Crashlytics) would receive this.
+    // Where a crash reporter (Sentry, Crashlytics) would hook in.
     console.error('Unhandled render error:', error, info.componentStack);
   }
 

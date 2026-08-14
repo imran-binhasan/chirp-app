@@ -7,6 +7,8 @@ import { notificationsApi } from '../../api/endpoints';
 import { queryKeys } from '../../api/queryKeys';
 import { useResponsive } from '../../utils/responsive';
 import { useThemeColors } from '../../utils/theme';
+import { ScreenContainer } from '../../components/ScreenContainer';
+import { LoadingState } from '../../components/StateViews';
 import { usePushNotifications } from '../../hooks/usePushNotifications';
 import { useAuth } from '../../store/AuthContext';
 
@@ -14,7 +16,7 @@ export default function MainLayout() {
   const theme = useThemeColors();
   const { navLayout, navWidth } = useResponsive();
   const { user, loading } = useAuth();
-  usePushNotifications();
+  usePushNotifications(Boolean(user));
 
   const isRail = navLayout !== 'bottom';
 
@@ -25,7 +27,17 @@ export default function MainLayout() {
     refetchInterval: 60_000,
   });
 
-  if (!loading && !user) {
+  // Rendering the tabs while `loading` is true would let every child screen
+  // fire its queries before a token exists, answering a cold start with 401s.
+  if (loading) {
+    return (
+      <ScreenContainer>
+        <LoadingState label="Loading" />
+      </ScreenContainer>
+    );
+  }
+
+  if (!user) {
     return <Redirect href="/welcome" />;
   }
 
@@ -35,12 +47,10 @@ export default function MainLayout() {
         headerShown: false,
         tabBarActiveTintColor: theme.primary,
         tabBarInactiveTintColor: theme.textSecondary,
-        // Navigation moves to the leading edge once there is room, the way X
-        // and Threads do on tablets: a bottom bar that wide reads as a
-        // stretched phone and sits far from the centred content column.
+        // A full-width bottom bar on a tablet reads as a stretched phone and
+        // sits far from the centred content, so navigation moves to the edge.
         tabBarPosition: isRail ? (I18nManager.isRTL ? 'right' : 'left') : 'bottom',
-        // 'material' gives the M3 rail treatment, and is also the only variant
-        // that permits labels under the icon on a side rail.
+        // 'material' is the only variant allowing labels under a rail icon.
         tabBarVariant: isRail ? 'material' : 'uikit',
         tabBarLabelPosition: !isRail
           ? undefined
