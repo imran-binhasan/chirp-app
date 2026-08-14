@@ -56,7 +56,7 @@ npm run dev
 ```bash
 cd mobile
 npm install
-echo 'EXPO_PUBLIC_API_URL=http://10.0.2.2:4000/api/v1' > .env
+echo 'EXPO_PUBLIC_API_URL=https://chirpapp.up.railway.app/api/v1' > .env
 npx expo start -c
 ```
 *(See `backend/README.md` and `mobile/README.md` for specific architectural details and testing instructions.)*

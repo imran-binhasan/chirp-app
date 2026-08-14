@@ -63,7 +63,7 @@ Place your `google-services.json` from Firebase in the `mobile/` directory. Ensu
 1. **Point `eas.json` at your deployed backend.** Replace the placeholder in the `preview`
    (and `production`) profile:
    ```json
-   "env": { "EXPO_PUBLIC_API_URL": "https://your-api-host/api/v1" }
+   "env": { "EXPO_PUBLIC_API_URL": "https://chirpapp.up.railway.app/api/v1" }
    ```
 
 2. **Build:**
