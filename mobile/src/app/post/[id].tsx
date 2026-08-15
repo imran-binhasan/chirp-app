@@ -124,6 +124,7 @@ function PostDetailScreen() {
           data={comments}
           renderItem={renderComment}
           keyExtractor={(item) => item.id}
+          showsVerticalScrollIndicator={false}
           onEndReached={loadMore}
           onEndReachedThreshold={0.5}
           keyboardShouldPersistTaps="handled"

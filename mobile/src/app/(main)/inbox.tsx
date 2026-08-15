@@ -172,6 +172,7 @@ export default function InboxScreen() {
           data={notifications}
           renderItem={renderNotification}
           keyExtractor={(item) => item.id}
+          showsVerticalScrollIndicator={false}
           onEndReached={loadMore}
           onEndReachedThreshold={0.5}
           refreshControl={

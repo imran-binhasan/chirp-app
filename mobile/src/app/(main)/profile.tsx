@@ -1,6 +1,5 @@
 import React, { useCallback } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, RefreshControl, Alert, ActivityIndicator } from 'react-native';
-import { useRouter } from 'expo-router';
 import { FlashList } from '@shopify/flash-list';
 import { Ionicons } from '@expo/vector-icons';
 import { queryKeys } from '../../api/queryKeys';
@@ -17,7 +16,6 @@ import type { Post } from '../../types/api';
 
 export default function ProfileScreen() {
   const theme = useThemeColors();
-  const router = useRouter();
   const { gutter } = useResponsive();
   const { user, logout } = useAuth();
   const username = user?.username;
@@ -41,11 +39,10 @@ export default function ProfileScreen() {
         style: 'destructive',
         onPress: async () => {
           await logout();
-          router.replace('/welcome');
         },
       },
     ]);
-  }, [logout, router]);
+  }, [logout]);
 
   if (!user) return null;
 
@@ -73,6 +70,7 @@ export default function ProfileScreen() {
           data={posts}
           renderItem={renderPost}
           keyExtractor={(item) => item.id}
+          showsVerticalScrollIndicator={false}
           onEndReached={loadMore}
           onEndReachedThreshold={0.5}
           refreshControl={
