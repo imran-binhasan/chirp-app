@@ -43,13 +43,38 @@ docker compose up -d          # Starts PostgreSQL container on port 5432
 ```bash
 npm install
 npm run prisma:deploy         # Apply database schema
-npm run prisma:seed           # Optional: 60 users, 120 posts, likes and comments
+npm run prisma:seed           # Demo data — see below
 npm run dev                   # Starts dev server on http://localhost:4000
 ```
 
-Every seeded account shares the password `Password123!` — log in as `demo` to browse a
-populated feed immediately. Seeding is additive, so re-run it against a fresh database
-(`npm run db:down && npm run db:up`) if you want a clean set.
+### Demo data
+
+`npm run prisma:seed` builds a feed worth scrolling: 36 users, 83 posts, ~820 likes and ~330
+comments, plus the matching inbox rows. Two accounts are fixed and documented so the app can be
+exercised straight away:
+
+| Username | Password |
+| --- | --- |
+| `demo` | `demo2026` |
+| `demo2` | `demo2026` |
+
+Every seeded account uses the same password. Engagement is deliberately uneven — roughly 45% of
+posts have no comments and a handful carry threads of 20–30 — because a uniform `random() * 40`
+gives every post about the same count, which reads as generated the moment you scroll. Post
+timestamps are weighted towards the present, so the top of the feed shows minutes rather than an
+unbroken column of "13d".
+
+The seed is **deterministic** (fixed PRNG seed → the same feed everywhere) and **idempotent**
+(row ids are hashes of their index, every insert uses `skipDuplicates`, and the denormalized
+counters are set to absolute values). Re-running it changes nothing, which is what makes it safe
+to point at a deployed database and safe to repeat if a run is interrupted. It only ever adds its
+own rows — real accounts and posts are never read, updated or deleted.
+
+To seed a deployment, point `DATABASE_URL` at it for the one command:
+
+```bash
+DATABASE_URL="<production-connection-string>" npm run prisma:seed
+```
 
 3. **FCM Push Notifications (Required for Push):**
 Add your Firebase credentials to `.env`:
@@ -173,7 +198,9 @@ npm test
 
 ## Production notes
 
-- Set explicit `CORS_ORIGINS` in production; wildcard CORS is rejected at startup.
+- No CORS middleware is installed, deliberately. The only client is a native React Native app,
+  and native HTTP is not subject to the browser's same-origin policy — a CORS layer here would
+  guard nothing. Add one only if a browser client is introduced.
 - Set `TRUST_PROXY` to the number of reverse proxies actually in front of the API (0 when it is
   exposed directly). Trusting `X-Forwarded-For` when nothing rewrites it lets any client forge its
   own IP and walk past the per-IP rate limiter.

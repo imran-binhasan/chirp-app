@@ -1,9 +1,9 @@
 # Upload rules for EAS Build. When this file exists it REPLACES .gitignore for
 # deciding what gets sent to the build servers.
 #
-# It exists for one reason: google-services.json is gitignored, but app.json
-# points `android.googleServicesFile` at it, so a build without it fails while
-# configuring Firebase. Everything below mirrors .gitignore — minus that file.
+# Nothing here may exclude google-services.json: app.json points
+# `android.googleServicesFile` at it, and a build without it fails while
+# configuring Firebase. Everything below mirrors .gitignore.
 
 node_modules/
 

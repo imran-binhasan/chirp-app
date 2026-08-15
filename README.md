@@ -2,7 +2,35 @@
 
 A lightweight social app for posting text updates, browsing a shared feed, interacting via likes/comments, and receiving push notifications (Firebase Cloud Messaging).
 
-**Repository:** [https://github.com/imran-binhasan/chirp-app](https://github.com/imran-binhasan/chirp-app)
+## 📥 Downloads
+
+| | |
+| --- | --- |
+| **Android APK** | **[Download from Google Drive](https://drive.google.com/file/d/1GM47pQH3ISw6Av9QsXFLnHrYD3irnjLI/view?usp=drivesdk)** |
+| **APK (mirror)** | [EAS build page](https://expo.dev/accounts/imran-binhasan/projects/social-app/builds/ef2ac518-f7c5-473d-9cc0-5687c70d8ca2) — expires ~2 weeks after the build; use the Drive link if it 404s |
+| **Repository** | [github.com/imran-binhasan/chirp-app](https://github.com/imran-binhasan/chirp-app) |
+| **Live API** | [chirpapp.up.railway.app](https://chirpapp.up.railway.app/health) · [interactive docs](https://chirpapp.up.railway.app/api/docs) |
+
+The APK is pre-pointed at the live API above — install it and sign up, no local setup required.
+
+### Trying it out
+
+Sign up for a fresh account, or use one of two pre-made ones:
+
+| Username | Password |
+| --- | --- |
+| `demo` | `demo2026` |
+| `demo2` | `demo2026` |
+
+**To see a push notification arrive,** you need two accounts, since you are never notified about
+your own activity. Log in as `demo` on one device and `demo2` on another (a second phone, or an
+emulator alongside a phone), then like or reply to one of `demo`'s posts from `demo2` — the push
+lands on the first device, and tapping it opens that post.
+
+One deliberate behaviour worth knowing before you test: a like sends **at most one** notification
+per person per post. Unliking and re-liking the same post stays quiet, so nobody can buzz your
+phone by tapping the heart repeatedly. Like a *different* post to see the next one. Replies always
+notify.
 
 ## ✅ Requirements Fulfillment
 
@@ -48,7 +76,7 @@ cp .env.example .env          # fill in JWT secrets
 docker compose up -d
 npm install
 npm run prisma:deploy
-npm run prisma:seed           # optional demo data — log in as "demo" / Password123!
+npm run prisma:seed           # optional, local development only — sample feed data
 npm run dev
 ```
 

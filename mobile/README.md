@@ -51,7 +51,9 @@ npx expo start -c
 *(Note: Push notifications require a real build. Auth, feed, offline caching, and posting work natively in Expo Go.)*
 
 ### 3. Push Notifications Setup
-Place your `google-services.json` from Firebase in the `mobile/` directory. Ensure the Android package name matches `com.techz.socialapp` in `app.json`.
+A `google-services.json` is committed so the project builds and receives pushes as-is. To point the
+app at your own Firebase project, replace that file and make sure its Android package name matches
+`com.techz.socialapp` in `app.json` — the two must agree or FCM registration fails at runtime.
 
 ## 📦 Building the APK
 
@@ -78,9 +80,11 @@ Android phone and verify signup, login, feed pagination, tablet navigation, and 
 like/comment notification end to end.
 
 ### Why `.easignore` exists
-`google-services.json` is gitignored, but `app.json` points `android.googleServicesFile` at it —
-and EAS honours ignore rules when uploading your project. Without `.easignore` re-including that
-file, the build fails while configuring Firebase. Keep the two files in step if you edit either.
+EAS honours ignore rules when uploading the project, and `.easignore` replaces `.gitignore` for
+that upload. It keeps the build context lean (no `coverage/`, no editor config) while guaranteeing
+that `google-services.json` — which `app.json` points `android.googleServicesFile` at — always
+travels with the build. Without it the build fails while configuring Firebase. It also keeps `.env`
+out of the upload: a build's values come from the profile's `env` block in `eas.json`.
 
 ### If your backend is plain HTTP
 Android blocks cleartext traffic in release builds; only the debug variant permits it. An APK
